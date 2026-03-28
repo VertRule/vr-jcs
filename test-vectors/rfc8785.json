@@ -1,0 +1,74 @@
+{
+  "description": "RFC 8785 conformance test vectors for JCS canonicalization",
+  "source": "RFC 8785 Section 3.2 (adapted)",
+  "vectors": [
+    {
+      "id": "utf16_property_sorting",
+      "description": "Object property names sorted by UTF-16 code units, not UTF-8 bytes",
+      "input": {"\\u20ac": "Euro", "\\r": "CR", "1": "One", "\\u0080": "Ctrl"},
+      "expected": "{\"\\r\":\"CR\",\"1\":\"One\",\"\u0080\":\"Ctrl\",\"€\":\"Euro\"}"
+    },
+    {
+      "id": "number_rendering",
+      "description": "ECMAScript-compatible number rendering",
+      "input": [333333333.33333329, 1e30, 4.50, 2e-3, 0.000000000000000000000000001],
+      "expected": "[333333333.3333333,1e+30,4.5,0.002,1e-27]"
+    },
+    {
+      "id": "string_escaping",
+      "description": "Control characters escaped, printable UTF-8 passed through",
+      "input": {"key": "\u0008\t\n"},
+      "expected": "{\"key\":\"\\b\\t\\n\"}"
+    },
+    {
+      "id": "empty_structures",
+      "description": "Empty object and array",
+      "input": {"obj": {}, "arr": []},
+      "expected": "{\"arr\":[],\"obj\":{}}"
+    },
+    {
+      "id": "nested_sorting",
+      "description": "Nested objects sorted recursively",
+      "input": {"z": {"z": 1, "a": 2}, "a": 3},
+      "expected": "{\"a\":3,\"z\":{\"a\":2,\"z\":1}}"
+    },
+    {
+      "id": "literals",
+      "description": "null, true, false rendered without whitespace",
+      "input": [null, true, false],
+      "expected": "[null,true,false]"
+    },
+    {
+      "id": "integer_rendering",
+      "description": "Integers rendered without decimal point",
+      "input": [0, 1, -1, 42],
+      "expected": "[0,1,-1,42]"
+    },
+    {
+      "id": "zero_rendering",
+      "description": "Negative zero renders as 0",
+      "input": [-0.0],
+      "expected": "[0]"
+    }
+  ],
+  "rejection_vectors": [
+    {
+      "id": "reject_duplicate_keys",
+      "description": "Duplicate property names must be rejected",
+      "raw_json": "{\"a\": 1, \"a\": 2}",
+      "expected_error": "duplicate property name"
+    },
+    {
+      "id": "reject_nested_duplicate_keys",
+      "description": "Duplicate keys in nested objects must be rejected",
+      "raw_json": "{\"outer\": {\"a\": 1, \"a\": 2}}",
+      "expected_error": "duplicate property name"
+    },
+    {
+      "id": "reject_noncharacter",
+      "description": "I-JSON forbidden noncharacters must be rejected",
+      "raw_json": "{\"bad\": \"\\uFDD0\"}",
+      "expected_error": "forbidden noncharacter"
+    }
+  ]
+}

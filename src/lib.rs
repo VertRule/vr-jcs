@@ -227,7 +227,6 @@ pub fn is_safe_integer(value: i64) -> bool {
 // ── Internal implementation ────────────────────────────────────────
 
 const MAX_SAFE_INTEGER: i64 = 9_007_199_254_740_991;
-const JSON_NUMBER_TOKEN: &str = "$serde_json::private::Number";
 
 fn to_canon_bytes_value(value: &Value) -> Result<Vec<u8>, JcsError> {
     let mut out = Vec::new();
@@ -586,88 +585,48 @@ impl<'de> Visitor<'de> for NoDuplicateValueVisitor {
     where
         A: MapAccess<'de>,
     {
-        match access.next_key_seed(JsonKeyClassifier)? {
-            Some(JsonKeyClass::Number) => {
-                let number: String = access.next_value()?;
-                let number = number.parse().map_err(A::Error::custom)?;
-                Ok(Value::Number(number))
-            }
-            Some(JsonKeyClass::Object(first_key)) => {
-                let mut object = serde_json::Map::new();
-                let mut seen =
-                    HashSet::with_capacity(access.size_hint().unwrap_or(0) + 1);
+        let Some(first_key) = access.next_key::<String>()? else {
+            return Ok(Value::Object(serde_json::Map::new()));
+        };
 
-                validate_string_contents(&first_key, "object property name")
+        // Validate first key (skip internal '$'-prefixed keys used by
+        // serde_json for number representations under arbitrary_precision).
+        if !first_key.starts_with('$') {
+            validate_string_contents(&first_key, "object property name")
+                .map_err(A::Error::custom)?;
+        }
+
+        let first_value = access.next_value_seed(NoDuplicateValueSeed)?;
+
+        let mut object = serde_json::Map::new();
+        object.insert(first_key.clone(), first_value);
+
+        let mut seen = HashSet::with_capacity(access.size_hint().unwrap_or(0) + 1);
+        seen.insert(first_key);
+
+        while let Some(key) = access.next_key::<String>()? {
+            // Only validate user-facing keys (skip internal serde keys
+            // that start with '$'). This handles arbitrary_precision
+            // numbers without depending on private serde_json internals.
+            if !key.starts_with('$') {
+                validate_string_contents(&key, "object property name")
                     .map_err(A::Error::custom)?;
-                seen.insert(first_key.clone());
-                let first_value = access.next_value_seed(NoDuplicateValueSeed)?;
-                object.insert(first_key, first_value);
-
-                while let Some(key) = access.next_key::<String>()? {
-                    validate_string_contents(&key, "object property name")
-                        .map_err(A::Error::custom)?;
-                    if !seen.insert(key.clone()) {
-                        return Err(A::Error::custom(format!(
-                            "duplicate property name `{key}`"
-                        )));
-                    }
-
-                    let value = access.next_value_seed(NoDuplicateValueSeed)?;
-                    object.insert(key, value);
-                }
-
-                Ok(Value::Object(object))
             }
-            None => Ok(Value::Object(serde_json::Map::new())),
+
+            if !seen.insert(key.clone()) {
+                return Err(A::Error::custom(format!(
+                    "duplicate property name `{key}`"
+                )));
+            }
+
+            let value = access.next_value_seed(NoDuplicateValueSeed)?;
+            object.insert(key, value);
         }
-    }
-}
 
-struct JsonKeyClassifier;
-
-enum JsonKeyClass {
-    Number,
-    Object(String),
-}
-
-impl<'de> DeserializeSeed<'de> for JsonKeyClassifier {
-    type Value = JsonKeyClass;
-
-    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        deserializer.deserialize_str(self)
-    }
-}
-
-impl Visitor<'_> for JsonKeyClassifier {
-    type Value = JsonKeyClass;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str("a JSON object key")
-    }
-
-    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-    where
-        E: de::Error,
-    {
-        if value == JSON_NUMBER_TOKEN {
-            Ok(JsonKeyClass::Number)
-        } else {
-            Ok(JsonKeyClass::Object(value.to_owned()))
-        }
-    }
-
-    fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
-    where
-        E: de::Error,
-    {
-        if value == JSON_NUMBER_TOKEN {
-            Ok(JsonKeyClass::Number)
-        } else {
-            Ok(JsonKeyClass::Object(value))
-        }
+        // If the map is a serde_json internal number representation,
+        // serde_json::from_value will reconstruct the proper Number.
+        // For real JSON objects, this is a no-op identity conversion.
+        serde_json::from_value(Value::Object(object)).map_err(A::Error::custom)
     }
 }
 
