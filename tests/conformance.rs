@@ -59,19 +59,25 @@ fn negative_zero_renders_as_zero() -> Result<(), vr_jcs::JcsError> {
 fn reject_duplicate_keys() {
     let result = vr_jcs::to_canon_bytes_from_slice(br#"{"a": 1, "a": 2}"#);
     assert!(result.is_err());
-    assert!(result.err().is_some_and(|e| e.to_string().contains("duplicate property name")));
+    assert!(result
+        .err()
+        .is_some_and(|e| e.to_string().contains("duplicate property name")));
 }
 
 #[test]
 fn reject_nested_duplicate_keys() {
     let result = vr_jcs::to_canon_bytes_from_slice(br#"{"outer": {"a": 1, "a": 2}}"#);
     assert!(result.is_err());
-    assert!(result.err().is_some_and(|e| e.to_string().contains("duplicate property name")));
+    assert!(result
+        .err()
+        .is_some_and(|e| e.to_string().contains("duplicate property name")));
 }
 
 #[test]
 fn reject_noncharacter_u_fdd0() {
     let result = vr_jcs::to_canon_string_from_str("{\"bad\":\"\u{fdd0}\"}");
     assert!(result.is_err());
-    assert!(result.err().is_some_and(|e| e.to_string().contains("forbidden noncharacter")));
+    assert!(result
+        .err()
+        .is_some_and(|e| e.to_string().contains("forbidden noncharacter")));
 }

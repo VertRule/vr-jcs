@@ -1,9 +1,12 @@
 [package]
+# Publish gate: requires passing CI, conformance vectors, and release constitution review.
 publish = false
 name = "vr-jcs"
 version = "0.2.0"
 edition = "2021"
+license = "Apache-2.0"
 description = "JSON Canonicalization Scheme (RFC 8785) glovebox for deterministic serialization"
+repository = "https://github.com/VertRule/vr-jcs"
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }

@@ -193,9 +193,7 @@ pub fn canonicalize(v: &mut Value) {
 ///
 /// Returns an error if the input contains duplicate property names,
 /// forbidden noncharacters, or is otherwise invalid JSON.
-pub fn deserialize_json_value_no_duplicates<'de, D>(
-    deserializer: D,
-) -> Result<Value, D::Error>
+pub fn deserialize_json_value_no_duplicates<'de, D>(deserializer: D) -> Result<Value, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -418,9 +416,7 @@ fn parse_shortest_decimal(body: &str) -> Result<(String, i32), JcsError> {
 
 fn render_ecmascript_number(digits: &str, exponent: i32) -> Result<String, JcsError> {
     let digits_len = i32::try_from(digits.len()).map_err(|_| {
-        JcsError::InvalidNumber(
-            "formatter emitted an unexpectedly long digit sequence".to_string(),
-        )
+        JcsError::InvalidNumber("formatter emitted an unexpectedly long digit sequence".to_string())
     })?;
     debug_assert!(digits_len > 0);
 
@@ -451,9 +447,7 @@ fn render_ecmascript_number(digits: &str, exponent: i32) -> Result<String, JcsEr
 
     if -6 < exponent && exponent <= 0 {
         let zeros = usize::try_from(-exponent).map_err(|_| {
-            JcsError::InvalidNumber(
-                "formatter produced an invalid negative exponent".to_string(),
-            )
+            JcsError::InvalidNumber("formatter produced an invalid negative exponent".to_string())
         })?;
         let mut out = String::with_capacity(2 + zeros + digits.len());
         out.push_str("0.");
@@ -609,14 +603,11 @@ impl<'de> Visitor<'de> for NoDuplicateValueVisitor {
             // that start with '$'). This handles arbitrary_precision
             // numbers without depending on private serde_json internals.
             if !key.starts_with('$') {
-                validate_string_contents(&key, "object property name")
-                    .map_err(A::Error::custom)?;
+                validate_string_contents(&key, "object property name").map_err(A::Error::custom)?;
             }
 
             if !seen.insert(key.clone()) {
-                return Err(A::Error::custom(format!(
-                    "duplicate property name `{key}`"
-                )));
+                return Err(A::Error::custom(format!("duplicate property name `{key}`")));
             }
 
             let value = access.next_value_seed(NoDuplicateValueSeed)?;

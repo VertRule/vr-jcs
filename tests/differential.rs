@@ -149,10 +149,7 @@ fn vr_jcs_output_is_valid_json() -> Result<(), vr_jcs::JcsError> {
     for input in inputs {
         let canon = vr_jcs::to_canon_string(&input)?;
         let reparsed: Value = serde_json::from_str(&canon).map_err(vr_jcs::JcsError::from)?;
-        assert_eq!(
-            input, reparsed,
-            "round-trip mismatch for {input}"
-        );
+        assert_eq!(input, reparsed, "round-trip mismatch for {input}");
     }
     Ok(())
 }
@@ -189,7 +186,10 @@ fn blake3_digest_matches_across_construction_orders() -> Result<(), vr_jcs::JcsE
 
     let d1 = blake3::hash(&vr_jcs::to_canon_bytes(&v1)?);
     let d2 = blake3::hash(&vr_jcs::to_canon_bytes(&v2)?);
-    assert_eq!(d1, d2, "same logical JSON must produce same BLAKE3 digest regardless of field order");
+    assert_eq!(
+        d1, d2,
+        "same logical JSON must produce same BLAKE3 digest regardless of field order"
+    );
     Ok(())
 }
 
