@@ -1,0 +1,13 @@
+schema_version: 1
+capability_id: schema.lib
+capability_version: v1
+domain: schema
+name: "lib"
+maturity: experimental
+surface: internal
+implementation:
+  primary_module: vr-jcs/src/lib.rs
+  entrypoints:
+    - type: module
+      symbol: lib
+supersedes: []

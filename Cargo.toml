@@ -1,22 +1,29 @@
 [package]
 publish = false
 name = "vr-jcs"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "JSON Canonicalization Scheme (RFC 8785) glovebox for deterministic serialization"
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde_json = { version = "1", features = ["arbitrary_precision"] }
+zmij = "1"
 
 [dev-dependencies]
 blake3 = "1"
 
 [lints.rust]
-unsafe_code = "warn"
+unsafe_code = "deny"
 unused_extern_crates = "deny"
 
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }
 unwrap_used = { level = "deny", priority = 1 }
 expect_used = { level = "deny", priority = 1 }
+float_arithmetic = "deny"
+suboptimal_flops = "deny"
+lossy_float_literal = "deny"
+cast_precision_loss = "deny"
+module_name_repetitions = "allow"
+too_many_lines = "allow"

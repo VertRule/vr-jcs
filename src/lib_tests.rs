@@ -3,76 +3,124 @@ use serde::Serialize;
 use serde_json::json;
 use std::collections::BTreeMap;
 
-#[test]
-fn canonicalize_flat_object() -> Result<(), JcsError> {
-    let mut v = json!({"z": 1, "a": 2, "m": 3});
-    canonicalize(&mut v);
+// ── Key sorting (UTF-16 code units, RFC 8785 §3.2.3) ──────────────
 
-    let s = serde_json::to_string(&v)?;
-    assert_eq!(s, r#"{"a":2,"m":3,"z":1}"#);
+#[test]
+fn sorts_ascii_keys() -> Result<(), JcsError> {
+    let value = json!({"z": 1, "a": 2, "m": 3});
+    let string = to_canon_string(&value)?;
+    assert_eq!(string, r#"{"a":2,"m":3,"z":1}"#);
     Ok(())
 }
 
 #[test]
-fn canonicalize_nested_objects() -> Result<(), JcsError> {
-    let mut v = json!({
-        "outer_z": {"inner_z": 1, "inner_a": 2},
-        "outer_a": {"inner_z": 3, "inner_a": 4}
+fn sorts_keys_by_utf16_code_units() -> Result<(), JcsError> {
+    let value = json!({
+        "\u{E000}": 2,
+        "\u{10000}": 1
     });
-    canonicalize(&mut v);
+    let string = to_canon_string(&value)?;
+    let expected = format!(r#"{{"{}":1,"{}":2}}"#, '\u{10000}', '\u{E000}');
+    assert_eq!(string, expected);
+    Ok(())
+}
 
-    let s = serde_json::to_string(&v)?;
+#[test]
+fn rfc_8785_property_sorting_example() -> Result<(), JcsError> {
+    let input = r#"{
+        "\u20ac": "Euro Sign",
+        "\r": "Carriage Return",
+        "\ufb33": "Hebrew Letter Dalet With Dagesh",
+        "1": "One",
+        "\ud83d\ude00": "Emoji: Grinning Face",
+        "\u0080": "Control",
+        "\u00f6": "Latin Small Letter O With Diaeresis"
+    }"#;
+    let string = to_canon_string_from_str(input)?;
+    let expected = concat!(
+        "{\"\\r\":\"Carriage Return\",",
+        "\"1\":\"One\",",
+        "\"\u{0080}\":\"Control\",",
+        "\"\u{00F6}\":\"Latin Small Letter O With Diaeresis\",",
+        "\"\u{20AC}\":\"Euro Sign\",",
+        "\"\u{1F600}\":\"Emoji: Grinning Face\",",
+        "\"\u{FB33}\":\"Hebrew Letter Dalet With Dagesh\"}"
+    );
+    assert_eq!(string, expected);
+    Ok(())
+}
+
+// ── Number rendering (ECMAScript, RFC 8785 §3.2.2.3) ──────────────
+
+#[test]
+fn rfc_8785_primitive_example() -> Result<(), JcsError> {
+    let input = r#"{
+        "numbers": [333333333.33333329, 1E30, 4.50, 2e-3, 0.000000000000000000000000001],
+        "string": "\u20ac$\u000F\u000aA'\u0042\u0022\u005c\\\"\/",
+        "literals": [null, true, false]
+    }"#;
+    let string = to_canon_string_from_str(input)?;
+    let expected = concat!(
+        "{\"literals\":[null,true,false],",
+        "\"numbers\":[333333333.3333333,1e+30,4.5,0.002,1e-27],",
+        "\"string\":\"€$\\u000f\\nA'B\\\"\\\\\\\\\\\"/\"}"
+    );
+    assert_eq!(string, expected);
+    Ok(())
+}
+
+#[test]
+fn ecmascript_number_rendering() -> Result<(), JcsError> {
+    let value = json!([
+        1e-6,
+        0.000_001_2,
+        1e-7,
+        1e20,
+        1e21,
+        1_000_000.0,
+        -0.0,
+        0.0,
+        1.0
+    ]);
+    let string = to_canon_string(&value)?;
     assert_eq!(
-        s,
-        r#"{"outer_a":{"inner_a":4,"inner_z":3},"outer_z":{"inner_a":2,"inner_z":1}}"#
+        string,
+        "[0.000001,0.0000012,1e-7,100000000000000000000,1e+21,1000000,0,0,1]"
     );
     Ok(())
 }
 
 #[test]
-fn canonicalize_preserves_array_order() -> Result<(), JcsError> {
-    let mut v = json!({
+fn rejects_non_exact_large_integer() {
+    let result = to_canon_bytes(&json!(9_007_199_254_740_993u64));
+    assert!(result.is_err());
+    if let Err(err) = result {
+        assert!(err.to_string().contains("not exactly representable"));
+    }
+}
+
+#[test]
+fn accepts_exact_large_integer() -> Result<(), JcsError> {
+    let string = to_canon_string(&json!(9_007_199_254_740_992u64))?;
+    assert_eq!(string, "9007199254740992");
+    Ok(())
+}
+
+// ── Structure handling ─────────────────────────────────────────────
+
+#[test]
+fn preserves_array_order_and_recurses_objects() -> Result<(), JcsError> {
+    let value = json!({
         "z": [{"b": 2, "a": 1}],
         "a": [{"b": 4, "a": 3}]
     });
-    canonicalize(&mut v);
-
-    let s = serde_json::to_string(&v)?;
-    assert_eq!(s, r#"{"a":[{"a":3,"b":4}],"z":[{"a":1,"b":2}]}"#);
+    let string = to_canon_string(&value)?;
+    assert_eq!(string, r#"{"a":[{"a":3,"b":4}],"z":[{"a":1,"b":2}]}"#);
     Ok(())
 }
 
 #[test]
-fn canonicalize_empty_object() -> Result<(), JcsError> {
-    let mut v = json!({});
-    canonicalize(&mut v);
-
-    let s = serde_json::to_string(&v)?;
-    assert_eq!(s, "{}");
-    Ok(())
-}
-
-#[test]
-fn canonicalize_scalar_is_noop() {
-    let mut v = json!(42);
-    canonicalize(&mut v);
-    assert_eq!(v, json!(42));
-
-    let mut v = json!("hello");
-    canonicalize(&mut v);
-    assert_eq!(v, json!("hello"));
-
-    let mut v = json!(null);
-    canonicalize(&mut v);
-    assert_eq!(v, json!(null));
-
-    let mut v = json!(true);
-    canonicalize(&mut v);
-    assert_eq!(v, json!(true));
-}
-
-#[test]
-fn to_canon_bytes_struct() -> Result<(), JcsError> {
+fn struct_serialization() -> Result<(), JcsError> {
     #[derive(Serialize)]
     struct Receipt {
         id: u64,
@@ -85,105 +133,25 @@ fn to_canon_bytes_struct() -> Result<(), JcsError> {
     data.insert("mango".to_string(), 2);
 
     let receipt = Receipt { id: 42, data };
-
     let bytes = to_canon_bytes(&receipt)?;
-    let s = String::from_utf8(bytes).map_err(|_| {
-        JcsError::Json(serde_json::Error::io(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            "utf8",
-        )))
-    })?;
+    let string = String::from_utf8(bytes)
+        .map_err(|e| JcsError::InvalidString(format!("output was not UTF-8: {e}")))?;
 
-    assert_eq!(s, r#"{"data":{"apple":1,"mango":2,"zebra":3},"id":42}"#);
-    Ok(())
-}
-
-#[test]
-fn to_canon_string_deterministic() -> Result<(), JcsError> {
-    #[derive(Serialize)]
-    struct Data {
-        z: i32,
-        a: i32,
-    }
-
-    let data = Data { z: 1, a: 2 };
-
-    let s1 = to_canon_string(&data)?;
-    let s2 = to_canon_string(&data)?;
-
-    assert_eq!(s1, s2);
-    assert_eq!(s1, r#"{"a":2,"z":1}"#);
-    Ok(())
-}
-
-#[test]
-#[allow(
-    clippy::unreadable_literal,
-    reason = "Test values are intentionally unformatted for copy-paste accuracy"
-)]
-fn shuffle_invariant_bytes() -> Result<(), JcsError> {
-    let v1 = json!({
-        "id": 123,
-        "timestamp": 456789,
-        "data": {"x": 1, "y": 2, "z": 3},
-        "tags": ["a", "b", "c"]
-    });
-
-    let v2 = json!({
-        "tags": ["a", "b", "c"],
-        "data": {"z": 3, "x": 1, "y": 2},
-        "timestamp": 456789,
-        "id": 123
-    });
-
-    let bytes1 = to_canon_bytes(&v1)?;
-    let bytes2 = to_canon_bytes(&v2)?;
-
-    assert_eq!(bytes1, bytes2);
-    Ok(())
-}
-
-#[test]
-fn shuffle_invariant_hashing() -> Result<(), JcsError> {
-    let v1 = json!({"z": 1, "a": 2});
-    let v2 = json!({"a": 2, "z": 1});
-
-    let bytes1 = to_canon_bytes(&v1)?;
-    let bytes2 = to_canon_bytes(&v2)?;
-
-    let hash1 = blake3::hash(&bytes1);
-    let hash2 = blake3::hash(&bytes2);
-
-    assert_eq!(hash1, hash2);
-    Ok(())
-}
-
-#[test]
-fn canon_bytes_equals_canon_string_bytes() -> Result<(), JcsError> {
-    let v = json!({"a": 1, "b": 2});
-
-    let bytes = to_canon_bytes(&v)?;
-    let string = to_canon_string(&v)?;
-
-    assert_eq!(bytes, string.as_bytes());
+    assert_eq!(
+        string,
+        r#"{"data":{"apple":1,"mango":2,"zebra":3},"id":42}"#
+    );
     Ok(())
 }
 
 #[test]
 fn deeply_nested_canonicalization() -> Result<(), JcsError> {
     let mut v = json!({
-        "z": {
-            "z": {
-                "z": 1,
-                "a": 2
-            },
-            "a": 3
-        },
+        "z": { "z": { "z": 1, "a": 2 }, "a": 3 },
         "a": 4
     });
     canonicalize(&mut v);
-
-    let s = serde_json::to_string(&v)?;
+    let s = to_canon_string(&v)?;
     assert_eq!(s, r#"{"a":4,"z":{"a":3,"z":{"a":2,"z":1}}}"#);
     Ok(())
 }
@@ -197,7 +165,6 @@ fn mixed_types_in_object() -> Result<(), JcsError> {
         "b_str": "hello",
         "c_arr": [1, 2, 3]
     }))?;
-
     assert_eq!(
         s,
         r#"{"a_null":null,"b_str":"hello","c_arr":[1,2,3],"m_num":42,"z_bool":true}"#
@@ -206,8 +173,95 @@ fn mixed_types_in_object() -> Result<(), JcsError> {
 }
 
 #[test]
-fn jcs_error_display() {
-    let err = JcsError::Json(serde_json::Error::io(std::io::Error::other("test error")));
-    let msg = err.to_string();
-    assert!(msg.contains("JCS serialization failed"));
+fn empty_object() -> Result<(), JcsError> {
+    let mut v = json!({});
+    canonicalize(&mut v);
+    let s = to_canon_string(&v)?;
+    assert_eq!(s, "{}");
+    Ok(())
+}
+
+#[test]
+fn scalar_is_noop() {
+    let mut v = json!(42);
+    canonicalize(&mut v);
+    assert_eq!(v, json!(42));
+}
+
+// ── Determinism ────────────────────────────────────────────────────
+
+#[test]
+fn canon_bytes_equals_canon_string_bytes() -> Result<(), JcsError> {
+    let value = json!({"a": 1, "b": 2});
+    let bytes = to_canon_bytes(&value)?;
+    let string = to_canon_string(&value)?;
+    assert_eq!(bytes, string.as_bytes());
+    Ok(())
+}
+
+#[test]
+fn shuffle_invariant() -> Result<(), JcsError> {
+    let v1 = json!({"id": 123, "timestamp": 456_789, "data": {"x": 1, "y": 2, "z": 3}});
+    let v2 = json!({"data": {"z": 3, "x": 1, "y": 2}, "timestamp": 456_789, "id": 123});
+    assert_eq!(to_canon_bytes(&v1)?, to_canon_bytes(&v2)?);
+    Ok(())
+}
+
+#[test]
+fn shuffle_invariant_hashing() -> Result<(), JcsError> {
+    let v1 = json!({"z": 1, "a": 2});
+    let v2 = json!({"a": 2, "z": 1});
+    let hash1 = blake3::hash(&to_canon_bytes(&v1)?);
+    let hash2 = blake3::hash(&to_canon_bytes(&v2)?);
+    assert_eq!(hash1, hash2);
+    Ok(())
+}
+
+// ── Validation (I-JSON, duplicate rejection) ───────────────────────
+
+#[test]
+fn rejects_duplicate_property_names() {
+    let result = to_canon_bytes_from_slice(br#"{"a": 1, "a": 2}"#);
+    assert!(result.is_err());
+    if let Err(err) = result {
+        assert!(err.to_string().contains("duplicate property name"));
+    }
+}
+
+#[test]
+fn rejects_nested_duplicate_property_names() {
+    let result = to_canon_bytes_from_slice(br#"{"outer": {"a": 1, "a": 2}}"#);
+    assert!(result.is_err());
+    if let Err(err) = result {
+        assert!(err.to_string().contains("duplicate property name"));
+    }
+}
+
+#[test]
+fn rejects_noncharacters() {
+    let result = to_canon_string_from_str(r#"{"bad":"\uFDD0"}"#);
+    assert!(result.is_err());
+    if let Err(err) = result {
+        assert!(err.to_string().contains("forbidden noncharacter"));
+    }
+}
+
+// ── Error display ──────────────────────────────────────────────────
+
+#[test]
+fn error_display_json() {
+    let err = JcsError::Json(serde_json::Error::io(std::io::Error::other("test")));
+    assert!(err.to_string().contains("JCS JSON processing failed"));
+}
+
+#[test]
+fn error_display_number() {
+    let err = JcsError::InvalidNumber("bad".to_string());
+    assert!(err.to_string().contains("number validation failed"));
+}
+
+#[test]
+fn error_display_string() {
+    let err = JcsError::InvalidString("bad".to_string());
+    assert!(err.to_string().contains("string validation failed"));
 }
