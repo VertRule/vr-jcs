@@ -1,6 +1,5 @@
 [package]
 # Publish gate: requires passing CI, conformance vectors, and release constitution review.
-publish = false
 name = "vr-jcs"
 version = "0.2.0"
 edition = "2021"
@@ -10,7 +9,7 @@ repository = "https://github.com/VertRule/vr-jcs"
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
-serde_json = { version = "1", features = ["arbitrary_precision"] }
+serde_json = { version = "1", features = ["arbitrary_precision", "preserve_order"] }
 zmij = "1"
 
 [dev-dependencies]

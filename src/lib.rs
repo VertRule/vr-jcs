@@ -183,7 +183,11 @@ pub fn canonicalize(v: &mut Value) {
     }
 }
 
-// ── Crate-internal helpers (used by vertrule-schemas) ──────────────
+// ── Provisional helpers for sibling crates ─────────────────────────
+//
+// Not part of the stable v0.2 API. Subject to change or removal
+// without semver bump. If still needed at publish time, these will
+// be gated behind `feature = "unstable"`.
 
 /// Deserialize a JSON value while rejecting duplicate property names.
 ///
@@ -193,6 +197,7 @@ pub fn canonicalize(v: &mut Value) {
 ///
 /// Returns an error if the input contains duplicate property names,
 /// forbidden noncharacters, or is otherwise invalid JSON.
+#[doc(hidden)]
 pub fn deserialize_json_value_no_duplicates<'de, D>(deserializer: D) -> Result<Value, D::Error>
 where
     D: Deserializer<'de>,
@@ -206,6 +211,7 @@ where
 ///
 /// Returns a description of the violation if the string contains a
 /// forbidden Unicode noncharacter (U+FDD0..U+FDEF, U+xFFFE, U+xFFFF).
+#[doc(hidden)]
 pub fn validate_string_contents(value: &str, context: &str) -> Result<(), String> {
     if let Some(ch) = value.chars().find(|&ch| is_noncharacter(ch)) {
         return Err(format!(
@@ -217,6 +223,7 @@ pub fn validate_string_contents(value: &str, context: &str) -> Result<(), String
 }
 
 /// Check if an integer is in the I-JSON safe integer range `[-2^53+1, 2^53-1]`.
+#[doc(hidden)]
 #[must_use]
 pub fn is_safe_integer(value: i64) -> bool {
     (-MAX_SAFE_INTEGER..=MAX_SAFE_INTEGER).contains(&value)
