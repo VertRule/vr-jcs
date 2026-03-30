@@ -50,7 +50,7 @@
 #![warn(missing_docs)]
 
 use std::cmp::Ordering;
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 
 use serde::de::{self, DeserializeSeed, Error as DeError, MapAccess, SeqAccess, Visitor};
 use serde::{Deserializer, Serialize};
@@ -425,7 +425,9 @@ fn render_ecmascript_number(digits: &str, exponent: i32) -> Result<String, JcsEr
     let digits_len = i32::try_from(digits.len()).map_err(|_| {
         JcsError::InvalidNumber("formatter emitted an unexpectedly long digit sequence".to_string())
     })?;
-    debug_assert!(digits_len > 0);
+    if digits_len == 0 {
+        return Err(JcsError::InvalidNumber("empty digit sequence".to_string()));
+    }
 
     if digits_len <= exponent && exponent <= 21 {
         let capacity = usize::try_from(exponent).map_err(|_| {
@@ -602,7 +604,7 @@ impl<'de> Visitor<'de> for NoDuplicateValueVisitor {
         let mut object = serde_json::Map::new();
         object.insert(first_key.clone(), first_value);
 
-        let mut seen = HashSet::with_capacity(access.size_hint().unwrap_or(0) + 1);
+        let mut seen = BTreeSet::new();
         seen.insert(first_key);
 
         while let Some(key) = access.next_key::<String>()? {
