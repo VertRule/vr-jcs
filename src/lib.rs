@@ -1,13 +1,10 @@
-//! # `VertRule` JCS Glovebox
+//! # vr-jcs
 //!
-//! **RFC 8785 JSON Canonicalization Scheme (JCS)**
+//! RFC 8785 JSON Canonicalization Scheme (JCS) for Rust.
 //!
-//! This crate is the single authorized location for JSON canonicalization
-//! in the `VertRule` ecosystem. All receipt serialization and digest computation
-//! MUST use these functions to ensure deterministic hashing.
-//!
-//! The implementation enforces the RFC 8785 rules that materially affect wire
-//! compatibility:
+//! Produces canonical JSON suitable for deterministic digest computation,
+//! content hashing, and stable serialization boundaries. Implements the
+//! RFC 8785 rules that materially affect wire compatibility:
 //! - UTF-16 code-unit sorting for object property names
 //! - ECMAScript-compatible primitive serialization
 //! - UTF-8 output without insignificant whitespace
@@ -38,11 +35,6 @@
 //! let json = to_canon_string(&receipt).expect("serialization");
 //! assert_eq!(json, r#"{"a_field":2,"z_field":1}"#);
 //! ```
-//!
-//! ## Enforcement
-//!
-//! Any code path that computes a digest over JSON MUST use this crate.
-//! Using `serde_json::to_string()` directly for digest input is forbidden.
 
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::expect_used)]
@@ -96,7 +88,7 @@ impl From<serde_json::Error> for JcsError {
 
 /// Serialize any `Serialize` type to canonical JSON bytes.
 ///
-/// This is the blessed serializer for all digest and signature inputs.
+/// Suitable for digest and signature inputs where deterministic output is required.
 ///
 /// # Errors
 ///

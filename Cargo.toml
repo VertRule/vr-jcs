@@ -1,10 +1,9 @@
 [package]
-# Publish gate: requires passing CI, conformance vectors, and release constitution review.
 name = "vr-jcs"
 version = "0.2.0"
 edition = "2021"
 license = "Apache-2.0"
-description = "JSON Canonicalization Scheme (RFC 8785) glovebox for deterministic serialization"
+description = "RFC 8785 JSON Canonicalization Scheme (JCS) for deterministic serialization in Rust"
 repository = "https://github.com/VertRule/vr-jcs"
 
 [dependencies]

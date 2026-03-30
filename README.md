@@ -6,7 +6,7 @@
 [![docs.rs](https://docs.rs/vr-jcs/badge.svg)](https://docs.rs/vr-jcs)
 [![License: Apache-2.0](https://img.shields.io/crates/l/vr-jcs.svg)](LICENSE)
 
-`vr-jcs` is the canonical JSON serialization boundary for the VertRule ecosystem. It produces RFC 8785 canonical JSON suitable for deterministic digest computation and receipt serialization.
+`vr-jcs` produces RFC 8785 canonical JSON suitable for deterministic digest computation, content hashing, and stable serialization boundaries. Originally developed for the [VertRule](https://github.com/VertRule) receipt infrastructure, it is suitable for any context requiring reproducible JSON output.
 
 ## What it does
 
