@@ -99,7 +99,10 @@ fn rfc8785_number_integers() -> Result<(), vr_jcs::JcsError> {
     assert_eq!(vr_jcs::to_canon_string(&serde_json::json!(1))?, "1");
     assert_eq!(vr_jcs::to_canon_string(&serde_json::json!(-1))?, "-1");
     assert_eq!(vr_jcs::to_canon_string(&serde_json::json!(42))?, "42");
-    assert_eq!(vr_jcs::to_canon_string(&serde_json::json!(999_999_999_999_i64))?, "999999999999");
+    assert_eq!(
+        vr_jcs::to_canon_string(&serde_json::json!(999_999_999_999_i64))?,
+        "999999999999"
+    );
     Ok(())
 }
 
@@ -117,7 +120,10 @@ fn rfc8785_number_fractions() -> Result<(), vr_jcs::JcsError> {
 #[test]
 fn rfc8785_shortest_representation() -> Result<(), vr_jcs::JcsError> {
     // 1e20 should render as 100000000000000000000, not 1e+20
-    assert_eq!(vr_jcs::to_canon_string(&serde_json::json!(1e20))?, "100000000000000000000");
+    assert_eq!(
+        vr_jcs::to_canon_string(&serde_json::json!(1e20))?,
+        "100000000000000000000"
+    );
     // 1e21 should use exponential: 1e+21
     assert_eq!(vr_jcs::to_canon_string(&serde_json::json!(1e21))?, "1e+21");
     Ok(())
@@ -125,9 +131,15 @@ fn rfc8785_shortest_representation() -> Result<(), vr_jcs::JcsError> {
 
 #[test]
 fn rfc8785_exponential_notation() -> Result<(), vr_jcs::JcsError> {
-    assert_eq!(vr_jcs::to_canon_string(&serde_json::json!(1e100))?, "1e+100");
+    assert_eq!(
+        vr_jcs::to_canon_string(&serde_json::json!(1e100))?,
+        "1e+100"
+    );
     assert_eq!(vr_jcs::to_canon_string(&serde_json::json!(1e-7))?, "1e-7");
-    assert_eq!(vr_jcs::to_canon_string(&serde_json::json!(2.220_446_049_250_313e-16))?, "2.220446049250313e-16");
+    assert_eq!(
+        vr_jcs::to_canon_string(&serde_json::json!(2.220_446_049_250_313e-16))?,
+        "2.220446049250313e-16"
+    );
     Ok(())
 }
 
@@ -148,7 +160,10 @@ fn rfc8785_string_escaping() -> Result<(), vr_jcs::JcsError> {
 fn rfc8785_backslash_and_quote_escaping() -> Result<(), vr_jcs::JcsError> {
     let input = serde_json::json!({"bs": "a\\b", "qt": "a\"b"});
     let canon = vr_jcs::to_canon_string(&input)?;
-    assert!(canon.contains("a\\\\b"), "backslash must be escaped: {canon}");
+    assert!(
+        canon.contains("a\\\\b"),
+        "backslash must be escaped: {canon}"
+    );
     assert!(canon.contains("a\\\"b"), "quote must be escaped: {canon}");
     Ok(())
 }
@@ -174,9 +189,18 @@ fn rfc8785_property_ordering_unicode() -> Result<(), vr_jcs::JcsError> {
     });
     let canon = vr_jcs::to_canon_string(&input)?;
     // Expected order by UTF-16 code units: \n (000A), \r (000D), "1" (0031), € (20AC)
-    assert!(canon.find("Newline") < canon.find("Carriage Return"), "\\n before \\r: {canon}");
-    assert!(canon.find("Carriage Return") < canon.find("One"), "\\r before 1: {canon}");
-    assert!(canon.find("One") < canon.find("Euro Sign"), "1 before €: {canon}");
+    assert!(
+        canon.find("Newline") < canon.find("Carriage Return"),
+        "\\n before \\r: {canon}"
+    );
+    assert!(
+        canon.find("Carriage Return") < canon.find("One"),
+        "\\r before 1: {canon}"
+    );
+    assert!(
+        canon.find("One") < canon.find("Euro Sign"),
+        "1 before €: {canon}"
+    );
     Ok(())
 }
 
@@ -214,7 +238,13 @@ fn rfc8785_composite_example() -> Result<(), vr_jcs::JcsError> {
     // Verify it parses back
     let _: serde_json::Value = serde_json::from_str(&canon).map_err(vr_jcs::JcsError::from)?;
     // Verify keys are sorted
-    assert!(canon.find("\"literals\"") < canon.find("\"numbers\""), "literals before numbers: {canon}");
-    assert!(canon.find("\"numbers\"") < canon.find("\"string\""), "numbers before string: {canon}");
+    assert!(
+        canon.find("\"literals\"") < canon.find("\"numbers\""),
+        "literals before numbers: {canon}"
+    );
+    assert!(
+        canon.find("\"numbers\"") < canon.find("\"string\""),
+        "numbers before string: {canon}"
+    );
     Ok(())
 }
