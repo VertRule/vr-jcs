@@ -20,10 +20,13 @@ ecosystem. Single authoritative source for all receipt canonicalization.
 - `serde_json` uses `preserve_order` + `arbitrary_precision` features.
   `preserve_order` makes `canonicalize()` behave correctly: insertion
   order is retained after sorting.
+- Duplicate-key detection uses `BTreeSet` (not `HashSet`) for
+  deterministic iteration — no nondeterminism in error paths.
+- RFC 8785 conformance vectors added as committed test fixtures.
 - Three helpers (`deserialize_json_value_no_duplicates`,
   `validate_string_contents`, `is_safe_integer`) are `pub` but marked
   `#[doc(hidden)]`. They exist for sibling-crate access and are not
-  part of the stable v0.1 contract. See `PUBLIC_SURFACE.md`.
+  part of the stable v0.2 contract. See `PUBLIC_SURFACE.md`.
 
 ## Consumers
 
