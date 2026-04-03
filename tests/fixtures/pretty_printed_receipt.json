@@ -1,0 +1,30 @@
+{
+  "context": {
+    "authority_set_digest": "blake3:25c5e463c1a3154dac2466b6afd82774a6f280054ba8346a8098bb6c14eb7bfe",
+    "policy_digest": "blake3:9e004d9239da1b076d1c4c87352cd57fbe32f2ef4e64b4e677ef90dc3a812dc6",
+    "repo_state_digest": "blake3:e93daad7d720fcd4c4948865566c97480ee2527530ef6fd48773c6189a8ea4c5"
+  },
+  "domain": "governance.capdiscovery.v1",
+  "epoch": 5,
+  "gate_outputs": {
+    "capability_admission": {
+      "gate_name": "capability_admission",
+      "output_digest": "blake3:a280d410c0abfa40741f0998065f4eaf3d326f10a1e13c9772098b3c9f9e5890",
+      "reasons": [
+        "classification: 20 clusters",
+        "disposition: 18 unresolved"
+      ],
+      "status": "pass"
+    }
+  },
+  "operation": {
+    "diff_digest": "blake3:9b11e873f6d689095d845f15fb67ad306689d377273135ccda5186fcf0603073",
+    "justification": "Capability admission: 20 clusters with disposition 18 unresolved",
+    "operation_type": "InfraChange"
+  },
+  "parent_id": "blake3:c94854e6d2ec1a8a254ebf144be7666d28e6a08294ca27968e5f03ff00259674",
+  "receipt_id": "blake3:a401919d61e1b8aadd67f65d4c063819146f45d784b83de3708e9b0c97514487",
+  "receipt_type": "GateOutput",
+  "signatures": [],
+  "timestamp": 1774565926
+}

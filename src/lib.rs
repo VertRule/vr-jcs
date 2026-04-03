@@ -13,33 +13,29 @@
 //!
 //! ## API
 //!
+//! ### Strict path (for untrusted JSON)
+//!
+//! - [`to_canon_bytes_from_slice`] — Parse untrusted JSON, apply strict admission checks, emit canonical bytes
+//! - [`to_canon_string_from_str`] — Parse untrusted JSON string, apply strict admission checks, emit canonical string
+//!
+//! ### Typed path (caller-controlled construction only, deprecated)
+//!
 //! - [`to_canon_bytes`] — Serialize any `Serialize` type to canonical JSON bytes
 //! - [`to_canon_string`] — Serialize any `Serialize` type to a canonical JSON string
-//! - [`to_canon_bytes_from_slice`] — Parse raw JSON and return canonical bytes (rejects duplicates)
-//! - [`to_canon_string_from_str`] — Parse raw JSON string and return canonical string
-//! - [`canonicalize`] — Sort object keys recursively in a `serde_json::Value` (in-place)
+//!
+//! ### In-place
+//!
+//! - [`canonicalize`] — Sort object keys recursively in a `serde_json::Value`
 //!
 //! ## Usage
 //!
 //! ```
-//! use vr_jcs::to_canon_string;
-//! use serde::Serialize;
-//!
-//! #[derive(Serialize)]
-//! struct Receipt {
-//!     z_field: u64,
-//!     a_field: u64,
-//! }
-//!
-//! let receipt = Receipt { z_field: 1, a_field: 2 };
-//! let json = to_canon_string(&receipt).expect("serialization");
+//! # fn main() -> Result<(), vr_jcs::JcsError> {
+//! let json = vr_jcs::to_canon_string_from_str(r#"{"z_field":1,"a_field":2}"#)?;
 //! assert_eq!(json, r#"{"a_field":2,"z_field":1}"#);
+//! # Ok(())
+//! # }
 //! ```
-
-#![deny(clippy::unwrap_used)]
-#![deny(clippy::expect_used)]
-#![deny(clippy::panic)]
-#![warn(missing_docs)]
 
 use std::cmp::Ordering;
 use std::collections::BTreeSet;
@@ -47,6 +43,14 @@ use std::collections::BTreeSet;
 use serde::de::{self, DeserializeSeed, Error as DeError, MapAccess, SeqAccess, Visitor};
 use serde::{Deserializer, Serialize};
 use serde_json::{Number, Value};
+
+/// Maximum permitted nesting depth for JSON structures.
+///
+/// Set to 128: 25x headroom over the deepest observed receipt artifacts
+/// in the `VertRule` ecosystem (5 levels) and aligned with `serde_json`'s
+/// default recursion limit. Applies uniformly to strict parse,
+/// in-place canonicalization, and recursive emission.
+pub const MAX_NESTING_DEPTH: usize = 128;
 
 /// Error type for canonical JSON operations.
 #[derive(Debug)]
@@ -57,6 +61,8 @@ pub enum JcsError {
     InvalidString(String),
     /// A JSON number violated JCS / I-JSON constraints.
     InvalidNumber(String),
+    /// The input exceeded [`MAX_NESTING_DEPTH`].
+    NestingDepthExceeded,
 }
 
 impl std::fmt::Display for JcsError {
@@ -65,6 +71,10 @@ impl std::fmt::Display for JcsError {
             Self::Json(e) => write!(f, "JCS JSON processing failed: {e}"),
             Self::InvalidString(msg) => write!(f, "JCS string validation failed: {msg}"),
             Self::InvalidNumber(msg) => write!(f, "JCS number validation failed: {msg}"),
+            Self::NestingDepthExceeded => write!(
+                f,
+                "JCS nesting depth exceeded maximum of {MAX_NESTING_DEPTH}"
+            ),
         }
     }
 }
@@ -73,7 +83,7 @@ impl std::error::Error for JcsError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Json(e) => Some(e),
-            Self::InvalidString(_) | Self::InvalidNumber(_) => None,
+            Self::InvalidString(_) | Self::InvalidNumber(_) | Self::NestingDepthExceeded => None,
         }
     }
 }
@@ -88,7 +98,9 @@ impl From<serde_json::Error> for JcsError {
 
 /// Serialize any `Serialize` type to canonical JSON bytes.
 ///
-/// Suitable for digest and signature inputs where deterministic output is required.
+/// The typed `Serialize` path is not authoritative for untrusted raw JSON
+/// because it does not control parse-time object-member admission. For
+/// untrusted input, use [`to_canon_bytes_from_slice`] instead.
 ///
 /// # Errors
 ///
@@ -96,6 +108,11 @@ impl From<serde_json::Error> for JcsError {
 /// - [`JcsError::Json`] if serialization to JSON fails
 /// - [`JcsError::InvalidString`] if a string contains an I-JSON forbidden code point
 /// - [`JcsError::InvalidNumber`] if a number is not interoperable under JCS
+/// - [`JcsError::NestingDepthExceeded`] if the value exceeds [`MAX_NESTING_DEPTH`]
+#[deprecated(
+    since = "0.3.0",
+    note = "use to_canon_bytes_from_slice for untrusted input; see PUBLIC_SURFACE.md"
+)]
 pub fn to_canon_bytes<T: Serialize>(value: &T) -> Result<Vec<u8>, JcsError> {
     let value = serde_json::to_value(value)?;
     to_canon_bytes_value(&value)
@@ -105,9 +122,14 @@ pub fn to_canon_bytes<T: Serialize>(value: &T) -> Result<Vec<u8>, JcsError> {
 ///
 /// # Errors
 ///
-/// Returns the same errors as [`to_canon_bytes`].
+/// Returns the same errors as [`to_canon_bytes_from_slice`].
+#[deprecated(
+    since = "0.3.0",
+    note = "use to_canon_string_from_str for untrusted input; see PUBLIC_SURFACE.md"
+)]
 pub fn to_canon_string<T: Serialize>(value: &T) -> Result<String, JcsError> {
-    let bytes = to_canon_bytes(value)?;
+    let value = serde_json::to_value(value)?;
+    let bytes = to_canon_bytes_value(&value)?;
     String::from_utf8(bytes).map_err(|error| {
         JcsError::InvalidString(format!(
             "canonical JSON output was not valid UTF-8: {error}"
@@ -115,22 +137,25 @@ pub fn to_canon_string<T: Serialize>(value: &T) -> Result<String, JcsError> {
     })
 }
 
-/// Parse raw JSON text and return canonical JSON bytes.
+/// Parse untrusted JSON, apply strict admission checks, and emit canonical
+/// RFC 8785 bytes.
 ///
-/// Unlike [`to_canon_bytes`], this function rejects duplicate property names
-/// because it sees the original JSON syntax before it is collapsed into
-/// `serde_json::Value`.
+/// Rejects duplicate property names, validates I-JSON string and number
+/// constraints, and enforces [`MAX_NESTING_DEPTH`]. Accepts any valid JSON
+/// formatting (including pretty-printed input) and canonicalizes it.
 ///
 /// # Errors
 ///
-/// Returns the same errors as [`to_canon_bytes`], plus [`JcsError::Json`] for
-/// malformed JSON or duplicate property names.
+/// Returns [`JcsError::Json`] for malformed JSON or duplicate property names,
+/// [`JcsError::InvalidString`] or [`JcsError::InvalidNumber`] for I-JSON
+/// violations, and [`JcsError::NestingDepthExceeded`] for depth limit breach.
 pub fn to_canon_bytes_from_slice(json: &[u8]) -> Result<Vec<u8>, JcsError> {
     let value = parse_json_value_no_duplicates(json)?;
     to_canon_bytes_value(&value)
 }
 
-/// Parse raw JSON text and return a canonical JSON string.
+/// Parse untrusted JSON text, apply strict admission checks, and emit a
+/// canonical RFC 8785 string.
 ///
 /// # Errors
 ///
@@ -150,9 +175,21 @@ pub fn to_canon_string_from_str(json: &str) -> Result<String, JcsError> {
 /// by UTF-16 code units (RFC 8785) and recursively processing nested
 /// structures. Array element order is preserved.
 ///
-/// For digest computation, prefer [`to_canon_bytes`] which handles the
-/// full RFC 8785 pipeline including number rendering and string validation.
-pub fn canonicalize(v: &mut Value) {
+/// For digest computation, prefer [`to_canon_bytes_from_slice`] which
+/// handles the full strict parse + canonical emit pipeline.
+///
+/// # Errors
+///
+/// Returns [`JcsError::NestingDepthExceeded`] if the value exceeds
+/// [`MAX_NESTING_DEPTH`].
+pub fn canonicalize(v: &mut Value) -> Result<(), JcsError> {
+    canonicalize_depth(v, 0)
+}
+
+fn canonicalize_depth(v: &mut Value, depth: usize) -> Result<(), JcsError> {
+    if depth > MAX_NESTING_DEPTH {
+        return Err(JcsError::NestingDepthExceeded);
+    }
     match v {
         Value::Object(map) => {
             let keys: Vec<String> = map.keys().cloned().collect();
@@ -162,22 +199,23 @@ pub fn canonicalize(v: &mut Value) {
                 .collect();
             entries.sort_by(|(a, _), (b, _)| cmp_utf16(a, b));
             for (key, mut value) in entries {
-                canonicalize(&mut value);
+                canonicalize_depth(&mut value, depth + 1)?;
                 map.insert(key, value);
             }
         }
         Value::Array(arr) => {
             for x in arr {
-                canonicalize(x);
+                canonicalize_depth(x, depth + 1)?;
             }
         }
         _ => {}
     }
+    Ok(())
 }
 
 // ── Provisional helpers for sibling crates ─────────────────────────
 //
-// Not part of the stable v0.2 API. Subject to change or removal
+// Not part of the stable v0.3 API. Subject to change or removal
 // without semver bump. If still needed at publish time, these will
 // be gated behind `feature = "unstable"`.
 
@@ -194,7 +232,7 @@ pub fn deserialize_json_value_no_duplicates<'de, D>(deserializer: D) -> Result<V
 where
     D: Deserializer<'de>,
 {
-    NoDuplicateValueSeed.deserialize(deserializer)
+    NoDuplicateValueSeed { depth: 0 }.deserialize(deserializer)
 }
 
 /// Validate that a string contains no I-JSON forbidden noncharacters.
@@ -227,11 +265,14 @@ const MAX_SAFE_INTEGER: i64 = 9_007_199_254_740_991;
 
 fn to_canon_bytes_value(value: &Value) -> Result<Vec<u8>, JcsError> {
     let mut out = Vec::new();
-    emit_value(&mut out, value)?;
+    emit_value(&mut out, value, 0)?;
     Ok(out)
 }
 
-fn emit_value(out: &mut Vec<u8>, value: &Value) -> Result<(), JcsError> {
+fn emit_value(out: &mut Vec<u8>, value: &Value, depth: usize) -> Result<(), JcsError> {
+    if depth > MAX_NESTING_DEPTH {
+        return Err(JcsError::NestingDepthExceeded);
+    }
     match value {
         Value::Null => out.extend_from_slice(b"null"),
         Value::Bool(boolean) => {
@@ -249,7 +290,7 @@ fn emit_value(out: &mut Vec<u8>, value: &Value) -> Result<(), JcsError> {
                 if index > 0 {
                     out.push(b',');
                 }
-                emit_value(out, item)?;
+                emit_value(out, item, depth + 1)?;
             }
             out.push(b']');
         }
@@ -264,7 +305,7 @@ fn emit_value(out: &mut Vec<u8>, value: &Value) -> Result<(), JcsError> {
                 }
                 emit_string(out, key, "object property name")?;
                 out.push(b':');
-                emit_value(out, item)?;
+                emit_value(out, item, depth + 1)?;
             }
             out.push(b'}');
         }
@@ -484,14 +525,30 @@ fn is_noncharacter(ch: char) -> bool {
     (0xFDD0..=0xFDEF).contains(&code) || (code <= 0x0010_FFFF && code & 0xFFFE == 0xFFFE)
 }
 
-fn parse_json_value_no_duplicates(json: &[u8]) -> Result<Value, serde_json::Error> {
+/// Sentinel prefix used by `NoDuplicateValueSeed` to signal depth exceeded
+/// through serde's error channel. Matched in `parse_json_value_no_duplicates`
+/// to promote the error to `JcsError::NestingDepthExceeded`.
+const DEPTH_EXCEEDED_SENTINEL: &str = "nesting depth exceeded maximum of ";
+
+fn parse_json_value_no_duplicates(json: &[u8]) -> Result<Value, JcsError> {
     let mut deserializer = serde_json::Deserializer::from_slice(json);
-    let value = deserialize_json_value_no_duplicates(&mut deserializer)?;
+    // Disable serde_json's built-in recursion limit — we enforce
+    // MAX_NESTING_DEPTH via NoDuplicateValueSeed instead.
+    deserializer.disable_recursion_limit();
+    let value = deserialize_json_value_no_duplicates(&mut deserializer).map_err(|e| {
+        if e.to_string().starts_with(DEPTH_EXCEEDED_SENTINEL) {
+            JcsError::NestingDepthExceeded
+        } else {
+            JcsError::Json(e)
+        }
+    })?;
     deserializer.end()?;
     Ok(value)
 }
 
-struct NoDuplicateValueSeed;
+struct NoDuplicateValueSeed {
+    depth: usize,
+}
 
 impl<'de> DeserializeSeed<'de> for NoDuplicateValueSeed {
     type Value = Value;
@@ -500,11 +557,18 @@ impl<'de> DeserializeSeed<'de> for NoDuplicateValueSeed {
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_any(NoDuplicateValueVisitor)
+        if self.depth > MAX_NESTING_DEPTH {
+            return Err(D::Error::custom(format!(
+                "{DEPTH_EXCEEDED_SENTINEL}{MAX_NESTING_DEPTH}"
+            )));
+        }
+        deserializer.deserialize_any(NoDuplicateValueVisitor { depth: self.depth })
     }
 }
 
-struct NoDuplicateValueVisitor;
+struct NoDuplicateValueVisitor {
+    depth: usize,
+}
 
 impl<'de> Visitor<'de> for NoDuplicateValueVisitor {
     type Value = Value;
@@ -570,7 +634,9 @@ impl<'de> Visitor<'de> for NoDuplicateValueVisitor {
         A: SeqAccess<'de>,
     {
         let mut values = Vec::with_capacity(access.size_hint().unwrap_or(0));
-        while let Some(value) = access.next_element_seed(NoDuplicateValueSeed)? {
+        while let Some(value) = access.next_element_seed(NoDuplicateValueSeed {
+            depth: self.depth + 1,
+        })? {
             values.push(value);
         }
         Ok(Value::Array(values))
@@ -591,7 +657,9 @@ impl<'de> Visitor<'de> for NoDuplicateValueVisitor {
                 .map_err(A::Error::custom)?;
         }
 
-        let first_value = access.next_value_seed(NoDuplicateValueSeed)?;
+        let first_value = access.next_value_seed(NoDuplicateValueSeed {
+            depth: self.depth + 1,
+        })?;
 
         let mut object = serde_json::Map::new();
         object.insert(first_key.clone(), first_value);
@@ -611,7 +679,9 @@ impl<'de> Visitor<'de> for NoDuplicateValueVisitor {
                 return Err(A::Error::custom(format!("duplicate property name `{key}`")));
             }
 
-            let value = access.next_value_seed(NoDuplicateValueSeed)?;
+            let value = access.next_value_seed(NoDuplicateValueSeed {
+                depth: self.depth + 1,
+            })?;
             object.insert(key, value);
         }
 
