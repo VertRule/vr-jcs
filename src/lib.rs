@@ -192,8 +192,7 @@ fn canonicalize_depth(v: &mut Value, depth: usize) -> Result<(), JcsError> {
     }
     match v {
         Value::Object(map) => {
-            let mut entries: Vec<(String, Value)> =
-                std::mem::take(map).into_iter().collect();
+            let mut entries: Vec<(String, Value)> = std::mem::take(map).into_iter().collect();
             entries.sort_by(|(a, _), (b, _)| cmp_utf16(a, b));
             for (key, mut value) in entries {
                 canonicalize_depth(&mut value, depth + 1)?;
