@@ -7,12 +7,13 @@ description = "RFC 8785 JSON Canonicalization Scheme (JCS) for deterministic ser
 repository = "https://github.com/VertRule/vr-jcs"
 
 [dependencies]
-serde = { version = "1", features = ["derive"] }
+serde = "1"
 serde_json = { version = "1", features = ["arbitrary_precision", "preserve_order", "unbounded_depth"] }
 zmij = "1"
 
 [dev-dependencies]
 blake3 = "1"
+serde = { version = "1", features = ["derive"] }
 
 [lints.rust]
 unsafe_code = "deny"

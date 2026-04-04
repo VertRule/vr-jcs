@@ -44,12 +44,7 @@ use serde::de::{self, DeserializeSeed, Error as DeError, MapAccess, SeqAccess, V
 use serde::{Deserializer, Serialize};
 use serde_json::{Number, Value};
 
-/// Maximum permitted nesting depth for JSON structures.
-///
-/// Set to 128: 25x headroom over the deepest observed receipt artifacts
-/// in the `VertRule` ecosystem (5 levels) and aligned with `serde_json`'s
-/// default recursion limit. Applies uniformly to strict parse,
-/// in-place canonicalization, and recursive emission.
+/// Maximum permitted nesting depth for JSON structures (128).
 pub const MAX_NESTING_DEPTH: usize = 128;
 
 /// Error type for canonical JSON operations.
@@ -215,11 +210,10 @@ fn canonicalize_depth(v: &mut Value, depth: usize) -> Result<(), JcsError> {
     Ok(())
 }
 
-// ── Provisional helpers for sibling crates ─────────────────────────
+// ── Sibling-crate helpers ─────────────────────────────────────────
 //
-// Not part of the stable v0.3 API. Subject to change or removal
-// without semver bump. If still needed at publish time, these will
-// be gated behind `feature = "unstable"`.
+// `#[doc(hidden)]` and not part of the stable API. Subject to change
+// or removal without semver bump.
 
 /// Deserialize a JSON value while rejecting duplicate property names.
 ///
@@ -654,8 +648,12 @@ impl<'de> Visitor<'de> for NoDuplicateValueVisitor {
             return Ok(Value::Object(serde_json::Map::new()));
         };
 
-        // Validate first key (skip internal '$'-prefixed keys used by
-        // serde_json for number representations under arbitrary_precision).
+        // Skip string validation for '$'-prefixed keys: serde_json uses
+        // internal sentinels (e.g. "$serde_json::private::Number") under
+        // arbitrary_precision. This intentionally over-matches — a user
+        // key like "$ref" containing a noncharacter would bypass
+        // validation. Acceptable because noncharacters in '$'-prefixed
+        // keys are vanishingly unlikely in practice.
         if !first_key.starts_with('$') {
             validate_string_contents(&first_key, "object property name")
                 .map_err(A::Error::custom)?;
@@ -672,9 +670,7 @@ impl<'de> Visitor<'de> for NoDuplicateValueVisitor {
         seen.insert(first_key);
 
         while let Some(key) = access.next_key::<String>()? {
-            // Only validate user-facing keys (skip internal serde keys
-            // that start with '$'). This handles arbitrary_precision
-            // numbers without depending on private serde_json internals.
+            // Same '$'-prefix skip as above (see first-key comment).
             if !key.starts_with('$') {
                 validate_string_contents(&key, "object property name").map_err(A::Error::custom)?;
             }

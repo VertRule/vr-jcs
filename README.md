@@ -41,11 +41,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 | Function | Description |
 |----------|-------------|
-| `to_canon_bytes` | Serialize any `Serialize` type to canonical JSON bytes |
-| `to_canon_string` | Serialize any `Serialize` type to a canonical JSON string |
 | `to_canon_bytes_from_slice` | Parse raw JSON bytes, reject duplicates, return canonical bytes |
 | `to_canon_string_from_str` | Parse raw JSON string, reject duplicates, return canonical string |
 | `canonicalize` | Sort object keys in-place by UTF-16 code units |
+| `to_canon_bytes` | *(deprecated)* Serialize a `Serialize` type to canonical JSON bytes |
+| `to_canon_string` | *(deprecated)* Serialize a `Serialize` type to a canonical JSON string |
 
 All functions return `Result<_, JcsError>`.
 
