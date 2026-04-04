@@ -54,6 +54,7 @@ pub const MAX_NESTING_DEPTH: usize = 128;
 
 /// Error type for canonical JSON operations.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum JcsError {
     /// JSON serialization or deserialization failed.
     Json(serde_json::Error),
@@ -122,7 +123,11 @@ pub fn to_canon_bytes<T: Serialize>(value: &T) -> Result<Vec<u8>, JcsError> {
 ///
 /// # Errors
 ///
-/// Returns the same errors as [`to_canon_bytes_from_slice`].
+/// Returns:
+/// - [`JcsError::Json`] if serialization to JSON fails
+/// - [`JcsError::InvalidString`] if a string contains an I-JSON forbidden code point
+/// - [`JcsError::InvalidNumber`] if a number is not interoperable under JCS
+/// - [`JcsError::NestingDepthExceeded`] if the value exceeds [`MAX_NESTING_DEPTH`]
 #[deprecated(
     since = "0.3.0",
     note = "use to_canon_string_from_str for untrusted input; see PUBLIC_SURFACE.md"
@@ -192,11 +197,8 @@ fn canonicalize_depth(v: &mut Value, depth: usize) -> Result<(), JcsError> {
     }
     match v {
         Value::Object(map) => {
-            let keys: Vec<String> = map.keys().cloned().collect();
-            let mut entries: Vec<(String, Value)> = keys
-                .into_iter()
-                .filter_map(|k| map.remove(&k).map(|v| (k, v)))
-                .collect();
+            let mut entries: Vec<(String, Value)> =
+                std::mem::take(map).into_iter().collect();
             entries.sort_by(|(a, _), (b, _)| cmp_utf16(a, b));
             for (key, mut value) in entries {
                 canonicalize_depth(&mut value, depth + 1)?;
@@ -315,14 +317,16 @@ fn emit_value(out: &mut Vec<u8>, value: &Value, depth: usize) -> Result<(), JcsE
 
 fn emit_number(out: &mut Vec<u8>, number: &Number) -> Result<(), JcsError> {
     if let Some(value) = number.as_i64() {
-        ensure_exact_binary64_integer(value.unsigned_abs(), &value.to_string())?;
-        out.extend_from_slice(value.to_string().as_bytes());
+        let s = value.to_string();
+        ensure_exact_binary64_integer(value.unsigned_abs(), &s)?;
+        out.extend_from_slice(s.as_bytes());
         return Ok(());
     }
 
     if let Some(value) = number.as_u64() {
-        ensure_exact_binary64_integer(value, &value.to_string())?;
-        out.extend_from_slice(value.to_string().as_bytes());
+        let s = value.to_string();
+        ensure_exact_binary64_integer(value, &s)?;
+        out.extend_from_slice(s.as_bytes());
         return Ok(());
     }
 
@@ -522,7 +526,7 @@ fn cmp_utf16(left: &str, right: &str) -> Ordering {
 
 fn is_noncharacter(ch: char) -> bool {
     let code = ch as u32;
-    (0xFDD0..=0xFDEF).contains(&code) || (code <= 0x0010_FFFF && code & 0xFFFE == 0xFFFE)
+    (0xFDD0..=0xFDEF).contains(&code) || code & 0xFFFE == 0xFFFE
 }
 
 /// Sentinel prefix used by `NoDuplicateValueSeed` to signal depth exceeded

@@ -25,26 +25,6 @@
 ## Usage
 
 ```rust
-use serde::Serialize;
-use vr_jcs::to_canon_string;
-
-#[derive(Serialize)]
-struct Receipt {
-    z_field: u64,
-    a_field: u64,
-}
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let receipt = Receipt { z_field: 1, a_field: 2 };
-    let json = to_canon_string(&receipt)?;
-    assert_eq!(json, r#"{"a_field":2,"z_field":1}"#);
-    Ok(())
-}
-```
-
-### Parse raw JSON with duplicate-key rejection
-
-```rust
 use vr_jcs::to_canon_string_from_str;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
