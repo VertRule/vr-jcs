@@ -1,0 +1,8 @@
+# Known nondeterminism in vr-jcs
+# Stage 0: Progressive hardening
+#
+# vr-jcs is a pure canonicalization library.
+# No known sources of nondeterminism.
+
+# [items]
+# (none)

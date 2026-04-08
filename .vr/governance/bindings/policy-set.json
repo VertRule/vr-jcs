@@ -1,5 +1,6 @@
 {
   "schema": "vr.governance.binding.policy-set/v1",
   "bindings": [],
-  "repo_local_policies": []
+  "repo_local_policies": [],
+  "note": "vr-jcs enforces determinism structurally via Cargo.toml lint configuration (float_arithmetic=deny, panic=deny, unwrap_used=deny, expect_used=deny) rather than formal governance policy binding. See .vr/README.md for rationale."
 }

@@ -1,0 +1,21 @@
+# Per-crate governance manifest for vr-jcs
+# RFC 8785 JSON Canonicalization Scheme
+
+[crate]
+name = "vr-jcs"
+version = "0.3.2"
+publish = true
+extraction_ready = true
+
+[dependencies.constitutional]
+# vr-jcs has no vr-* dependencies — it is the canonicalization primitive
+
+[stage]
+current = 0
+determinism = "structural"
+
+[policy_bindings]
+# vr-jcs enforces determinism structurally via Cargo.toml lint configuration
+# (float_arithmetic=deny, panic=deny, unwrap_used=deny, etc.)
+# rather than formal governance policy binding.
+# See .vr/README.md for rationale.
