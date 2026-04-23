@@ -59,6 +59,7 @@ pub const MAX_NESTING_DEPTH: usize = 128;
 ## Error Type
 
 ```rust
+#[non_exhaustive]
 pub enum JcsError {
     Json(serde_json::Error),
     InvalidString(String),
@@ -66,6 +67,26 @@ pub enum JcsError {
     NestingDepthExceeded,
 }
 ```
+
+`JcsError` is `#[non_exhaustive]`. Downstream crates should not match on
+its variants directly — use the stable projection below.
+
+### Stable projection for downstream mapping
+
+```rust
+pub enum JcsErrorInfo {
+    Json(serde_json::Error),
+    Validation(String),
+}
+
+impl JcsError {
+    pub fn into_info(self) -> JcsErrorInfo;
+}
+```
+
+`JcsErrorInfo` is intentionally exhaustive. Future `JcsError` variants
+collapse into `Validation` via `Display`, so adding variants to `JcsError`
+will not break downstream matches on `JcsErrorInfo`.
 
 ## Not Part of the Stable v0.3 Contract
 

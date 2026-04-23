@@ -47,48 +47,8 @@ use serde_json::{Number, Value};
 /// Maximum permitted nesting depth for JSON structures (128).
 pub const MAX_NESTING_DEPTH: usize = 128;
 
-/// Error type for canonical JSON operations.
-#[derive(Debug)]
-#[non_exhaustive]
-pub enum JcsError {
-    /// JSON serialization or deserialization failed.
-    Json(serde_json::Error),
-    /// A JSON string violated I-JSON constraints.
-    InvalidString(String),
-    /// A JSON number violated JCS / I-JSON constraints.
-    InvalidNumber(String),
-    /// The input exceeded [`MAX_NESTING_DEPTH`].
-    NestingDepthExceeded,
-}
-
-impl std::fmt::Display for JcsError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Json(e) => write!(f, "JCS JSON processing failed: {e}"),
-            Self::InvalidString(msg) => write!(f, "JCS string validation failed: {msg}"),
-            Self::InvalidNumber(msg) => write!(f, "JCS number validation failed: {msg}"),
-            Self::NestingDepthExceeded => write!(
-                f,
-                "JCS nesting depth exceeded maximum of {MAX_NESTING_DEPTH}"
-            ),
-        }
-    }
-}
-
-impl std::error::Error for JcsError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Json(e) => Some(e),
-            Self::InvalidString(_) | Self::InvalidNumber(_) | Self::NestingDepthExceeded => None,
-        }
-    }
-}
-
-impl From<serde_json::Error> for JcsError {
-    fn from(error: serde_json::Error) -> Self {
-        Self::Json(error)
-    }
-}
+mod error;
+pub use error::{JcsError, JcsErrorInfo};
 
 // ── Public API ─────────────────────────────────────────────────────
 
