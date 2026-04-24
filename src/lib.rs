@@ -27,6 +27,15 @@
 //!
 //! - [`canonicalize`] — Sort object keys recursively in a `serde_json::Value`
 //!
+//! ### Canonical digest
+//!
+//! - [`to_canon_digest_from_slice`] — Parse untrusted JSON, canonicalize, and return the BLAKE3 digest of the canonical bytes
+//! - [`to_canon_digest`] — Canonicalize a trusted `serde_json::Value` and return its BLAKE3 digest
+//!
+//! These wrappers make the "canonicalize before hash" invariant lexically
+//! inseparable. Receipt-bound and constitutional code paths MUST use these
+//! instead of pairing `to_canon_bytes_*` with `blake3::hash` manually.
+//!
 //! ## Usage
 //!
 //! ```
@@ -127,6 +136,48 @@ pub fn to_canon_string_from_str(json: &str) -> Result<String, JcsError> {
             "canonical JSON output was not valid UTF-8: {error}"
         ))
     })
+}
+
+/// Canonicalize an already-parsed JSON value and return its BLAKE3 digest.
+///
+/// The value is assumed to come from trusted, caller-controlled construction.
+/// For untrusted input, use [`to_canon_digest_from_slice`] instead, which
+/// applies the strict admission checks (duplicate-property rejection,
+/// I-JSON validation, depth bound).
+///
+/// Pairing [`to_canon_bytes_from_slice`] (or any other canonical serializer)
+/// with [`blake3::hash`] manually is a known hazard: a single missed or
+/// reordered step silently corrupts the digest. This function keeps the
+/// two operations inseparable.
+///
+/// # Errors
+///
+/// Returns:
+/// - [`JcsError::Json`] if the value cannot be canonicalized
+/// - [`JcsError::InvalidString`] for I-JSON forbidden code points
+/// - [`JcsError::InvalidNumber`] for non-interoperable numbers
+/// - [`JcsError::NestingDepthExceeded`] for values beyond [`MAX_NESTING_DEPTH`]
+pub fn to_canon_digest(value: &Value) -> Result<[u8; 32], JcsError> {
+    let bytes = to_canon_bytes_value(value)?;
+    Ok(*blake3::hash(&bytes).as_bytes())
+}
+
+/// Parse untrusted JSON, apply strict admission checks, canonicalize, and
+/// return the BLAKE3 digest of the canonical bytes.
+///
+/// This is the preferred entry point for computing receipt IDs, content
+/// fingerprints, and any digest that crosses a trust boundary. It admits the
+/// same errors as [`to_canon_bytes_from_slice`] plus nothing new — the
+/// BLAKE3 step is infallible once canonicalization succeeds.
+///
+/// # Errors
+///
+/// Returns [`JcsError::Json`] for malformed JSON or duplicate property names,
+/// [`JcsError::InvalidString`] or [`JcsError::InvalidNumber`] for I-JSON
+/// violations, and [`JcsError::NestingDepthExceeded`] for depth limit breach.
+pub fn to_canon_digest_from_slice(json: &[u8]) -> Result<[u8; 32], JcsError> {
+    let bytes = to_canon_bytes_from_slice(json)?;
+    Ok(*blake3::hash(&bytes).as_bytes())
 }
 
 /// Recursively sort all object keys in a JSON value for canonical representation.

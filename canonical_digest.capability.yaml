@@ -1,0 +1,21 @@
+schema_version: 1
+capability_id: schema.canonical_digest
+capability_version: v1
+domain: schema
+name: canonical digest
+maturity: internal
+surface: internal
+owner:
+  kind: crate
+  name: vr-jcs
+implementation:
+  primary_module: vr-jcs/src/lib.rs
+  entrypoints:
+    - type: module
+      symbol: schema.canonical_digest
+  owner_files:
+    - vr-jcs/**
+aliases: []
+supersedes: []
+owner_files:
+  - vr-jcs/**

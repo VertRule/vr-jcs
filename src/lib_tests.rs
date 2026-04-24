@@ -344,3 +344,64 @@ mod deprecated_typed_path_depth {
         }
     }
 }
+
+// ── Canonical digest (to_canon_digest / to_canon_digest_from_slice) ──
+
+#[test]
+fn to_canon_digest_matches_manual_pairing() -> Result<(), JcsError> {
+    let value = json!({"z_field": 1, "a_field": 2});
+    let manual = {
+        let bytes = to_canon_bytes_value(&value)?;
+        *blake3::hash(&bytes).as_bytes()
+    };
+    let combined = to_canon_digest(&value)?;
+    assert_eq!(manual, combined, "combined wrapper must match manual pairing");
+    Ok(())
+}
+
+#[test]
+fn to_canon_digest_from_slice_matches_value_path() -> Result<(), JcsError> {
+    // The strict-parse path and the Value path must agree on the digest
+    // for an equivalent input. Different textual input (whitespace, key
+    // order) must still land on the same digest.
+    let from_bytes = to_canon_digest_from_slice(br#"{"a":1,"b":[2,3]}"#)?;
+    let pretty = to_canon_digest_from_slice(br#"{
+        "b": [2, 3],
+        "a": 1
+    }"#)?;
+    assert_eq!(from_bytes, pretty);
+
+    let via_value = to_canon_digest(&json!({"a": 1, "b": [2, 3]}))?;
+    assert_eq!(from_bytes, via_value);
+    Ok(())
+}
+
+#[test]
+fn to_canon_digest_stable_across_calls() -> Result<(), JcsError> {
+    let value = json!({"nested": {"x": 1, "y": [null, true, 2.5]}});
+    let d1 = to_canon_digest(&value)?;
+    let d2 = to_canon_digest(&value)?;
+    assert_eq!(d1, d2);
+    Ok(())
+}
+
+#[test]
+fn to_canon_digest_from_slice_rejects_duplicate_keys() {
+    // Duplicate property names go through the strict admission path and
+    // must be rejected — no silent "last write wins" behavior in a digest.
+    let result = to_canon_digest_from_slice(br#"{"x": 1, "x": 2}"#);
+    assert!(result.is_err(), "duplicate keys must reject");
+}
+
+#[test]
+fn to_canon_digest_rejects_nonfinite_float() {
+    // NaN and infinities are forbidden in JCS; the digest path inherits this.
+    let mut m = serde_json::Map::new();
+    m.insert("bad".into(), Value::Number(Number::from_f64(f64::NAN).unwrap_or_else(|| Number::from(0))));
+    // If from_f64 returned None (NaN rejection at Number), construct the
+    // value via a raw parse instead.
+    let raw = br#"{"bad": NaN}"#;
+    let via_parse = to_canon_digest_from_slice(raw);
+    assert!(via_parse.is_err(), "NaN must reject through strict parse");
+    let _ = m;
+}

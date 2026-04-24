@@ -10,9 +10,9 @@ repository = "https://github.com/VertRule/vr-jcs"
 serde = "1"
 serde_json = { version = "1", features = ["arbitrary_precision", "preserve_order", "unbounded_depth"] }
 zmij = "1"
+blake3 = "1"
 
 [dev-dependencies]
-blake3 = "1"
 serde = { version = "1", features = ["derive"] }
 
 [lints.rust]
