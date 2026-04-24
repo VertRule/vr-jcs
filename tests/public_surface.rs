@@ -8,6 +8,9 @@
 use vr_jcs::canonicalize;
 use vr_jcs::to_canon_bytes_from_slice;
 use vr_jcs::to_canon_string_from_str;
+use vr_jcs::CanonicalDigest;
+use vr_jcs::DigestAlgorithm;
+use vr_jcs::DigestStrategy;
 use vr_jcs::JcsError;
 
 #[test]
@@ -37,6 +40,58 @@ fn deprecated_typed_path_symbols_are_usable() -> Result<(), JcsError> {
 
     let s = to_canon_string(&serde_json::json!({"b": 2}))?;
     assert_eq!(s, r#"{"b":2}"#);
+
+    Ok(())
+}
+
+#[test]
+fn digest_strategy_symbols_are_usable() -> Result<(), JcsError> {
+    // Lock in the strategy-bearing digest API so a symbol rename or
+    // visibility tightening is caught at the public boundary.
+    use vr_jcs::to_canon_digest_with;
+
+    let value = serde_json::json!({"x": 1});
+
+    let plain = to_canon_digest_with(&value, &DigestStrategy::blake3_untagged())?;
+    assert_eq!(plain.algorithm, DigestAlgorithm::Blake3Untagged);
+    assert_eq!(plain.bytes.len(), 32);
+    assert_eq!(plain.algorithm.name(), "blake3-untagged");
+
+    let keyed = to_canon_digest_with(&value, &DigestStrategy::blake3_keyed([0u8; 32]))?;
+    assert_ne!(keyed.bytes, plain.bytes, "keyed must differ from plain");
+
+    let domain =
+        to_canon_digest_with(&value, &DigestStrategy::blake3_domain_separated("test"))?;
+    assert_eq!(domain.algorithm.name(), "blake3-domain-separated");
+
+    // SHA-256 variant is declared but unimplemented; constructor must be
+    // callable so policy code can reference it today.
+    let sha = DigestStrategy::sha256();
+    let err = to_canon_digest_with(&value, &sha);
+    assert!(
+        matches!(err, Err(JcsError::UnsupportedAlgorithm(_))),
+        "expected UnsupportedAlgorithm, got {err:?}"
+    );
+
+    // Typed-output accessor reachability.
+    let _: &[u8] = &plain.bytes;
+    let _: &DigestAlgorithm = &plain.algorithm;
+    let _: CanonicalDigest = plain;
+
+    Ok(())
+}
+
+#[test]
+fn fixed_blake3_convenience_symbols_are_usable() -> Result<(), JcsError> {
+    // Lock in the fixed-BLAKE3 convenience wrappers.
+    use vr_jcs::to_canon_blake3_digest;
+    use vr_jcs::to_canon_blake3_digest_from_slice;
+
+    let from_value = to_canon_blake3_digest(&serde_json::json!({"a": 1}))?;
+    assert_eq!(from_value.len(), 32);
+
+    let from_slice = to_canon_blake3_digest_from_slice(br#"{"a":1}"#)?;
+    assert_eq!(from_value, from_slice);
 
     Ok(())
 }

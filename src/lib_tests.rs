@@ -441,10 +441,10 @@ fn strategy_blake3_domain_separated_distinguishes_contexts() -> Result<(), JcsEr
 fn strategy_sha256_reports_unsupported() {
     let value = json!({"x": 1});
     let result = to_canon_digest_with(&value, &DigestStrategy::sha256());
-    match result {
-        Err(JcsError::UnsupportedAlgorithm(_)) => {}
-        other => panic!("expected UnsupportedAlgorithm, got {other:?}"),
-    }
+    assert!(
+        matches!(result, Err(JcsError::UnsupportedAlgorithm(_))),
+        "expected UnsupportedAlgorithm, got {result:?}"
+    );
 }
 
 #[test]
@@ -453,10 +453,11 @@ fn canonical_digest_carries_algorithm() -> Result<(), JcsError> {
     let result = to_canon_digest_with(&value, &DigestStrategy::blake3_untagged())?;
     // The typed output remembers which algorithm produced it so callers
     // can record it in receipts without out-of-band convention.
-    match result.algorithm {
-        DigestAlgorithm::Blake3Untagged => {}
-        other => panic!("expected Blake3Untagged, got {other:?}"),
-    }
+    assert!(
+        matches!(result.algorithm, DigestAlgorithm::Blake3Untagged),
+        "expected Blake3Untagged, got {:?}",
+        result.algorithm
+    );
     assert_eq!(result.bytes.len(), 32);
     Ok(())
 }
