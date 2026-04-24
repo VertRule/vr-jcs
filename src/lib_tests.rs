@@ -345,63 +345,118 @@ mod deprecated_typed_path_depth {
     }
 }
 
-// ── Canonical digest (to_canon_digest / to_canon_digest_from_slice) ──
+// ── BLAKE3 convenience (to_canon_blake3_digest*) ──
 
 #[test]
-fn to_canon_digest_matches_manual_pairing() -> Result<(), JcsError> {
+fn to_canon_blake3_digest_matches_manual_pairing() -> Result<(), JcsError> {
     let value = json!({"z_field": 1, "a_field": 2});
     let manual = {
         let bytes = to_canon_bytes_value(&value)?;
         *blake3::hash(&bytes).as_bytes()
     };
-    let combined = to_canon_digest(&value)?;
-    assert_eq!(manual, combined, "combined wrapper must match manual pairing");
+    let combined = to_canon_blake3_digest(&value)?;
+    assert_eq!(manual, combined, "wrapper must match manual pairing");
     Ok(())
 }
 
 #[test]
-fn to_canon_digest_from_slice_matches_value_path() -> Result<(), JcsError> {
-    // The strict-parse path and the Value path must agree on the digest
-    // for an equivalent input. Different textual input (whitespace, key
-    // order) must still land on the same digest.
-    let from_bytes = to_canon_digest_from_slice(br#"{"a":1,"b":[2,3]}"#)?;
-    let pretty = to_canon_digest_from_slice(br#"{
+fn to_canon_blake3_digest_from_slice_matches_value_path() -> Result<(), JcsError> {
+    let from_bytes = to_canon_blake3_digest_from_slice(br#"{"a":1,"b":[2,3]}"#)?;
+    let pretty = to_canon_blake3_digest_from_slice(br#"{
         "b": [2, 3],
         "a": 1
     }"#)?;
     assert_eq!(from_bytes, pretty);
 
-    let via_value = to_canon_digest(&json!({"a": 1, "b": [2, 3]}))?;
+    let via_value = to_canon_blake3_digest(&json!({"a": 1, "b": [2, 3]}))?;
     assert_eq!(from_bytes, via_value);
     Ok(())
 }
 
 #[test]
-fn to_canon_digest_stable_across_calls() -> Result<(), JcsError> {
+fn to_canon_blake3_digest_stable_across_calls() -> Result<(), JcsError> {
     let value = json!({"nested": {"x": 1, "y": [null, true, 2.5]}});
-    let d1 = to_canon_digest(&value)?;
-    let d2 = to_canon_digest(&value)?;
+    let d1 = to_canon_blake3_digest(&value)?;
+    let d2 = to_canon_blake3_digest(&value)?;
     assert_eq!(d1, d2);
     Ok(())
 }
 
 #[test]
-fn to_canon_digest_from_slice_rejects_duplicate_keys() {
-    // Duplicate property names go through the strict admission path and
-    // must be rejected — no silent "last write wins" behavior in a digest.
-    let result = to_canon_digest_from_slice(br#"{"x": 1, "x": 2}"#);
+fn to_canon_blake3_digest_from_slice_rejects_duplicate_keys() {
+    let result = to_canon_blake3_digest_from_slice(br#"{"x": 1, "x": 2}"#);
     assert!(result.is_err(), "duplicate keys must reject");
 }
 
 #[test]
-fn to_canon_digest_rejects_nonfinite_float() {
-    // NaN and infinities are forbidden in JCS; the digest path inherits this.
-    let mut m = serde_json::Map::new();
-    m.insert("bad".into(), Value::Number(Number::from_f64(f64::NAN).unwrap_or_else(|| Number::from(0))));
-    // If from_f64 returned None (NaN rejection at Number), construct the
-    // value via a raw parse instead.
+fn to_canon_blake3_digest_rejects_nonfinite_float() {
     let raw = br#"{"bad": NaN}"#;
-    let via_parse = to_canon_digest_from_slice(raw);
+    let via_parse = to_canon_blake3_digest_from_slice(raw);
     assert!(via_parse.is_err(), "NaN must reject through strict parse");
-    let _ = m;
+}
+
+// ── Strategy-bearing digest (to_canon_digest_with) ──
+
+#[test]
+fn strategy_blake3_untagged_matches_fixed_wrapper() -> Result<(), JcsError> {
+    let value = json!({"a": 1, "b": [2, 3]});
+    let fixed = to_canon_blake3_digest(&value)?;
+    let strategic = to_canon_digest_with(&value, &DigestStrategy::blake3_untagged())?;
+    assert_eq!(strategic.algorithm, DigestAlgorithm::Blake3Untagged);
+    assert_eq!(strategic.bytes, fixed.to_vec());
+    assert_eq!(strategic.algorithm.name(), "blake3-untagged");
+    Ok(())
+}
+
+#[test]
+fn strategy_blake3_keyed_differs_from_untagged() -> Result<(), JcsError> {
+    let value = json!({"receipt_id": "abc"});
+    let untagged = to_canon_digest_with(&value, &DigestStrategy::blake3_untagged())?;
+    let keyed = to_canon_digest_with(&value, &DigestStrategy::blake3_keyed([7u8; 32]))?;
+    assert_ne!(untagged.bytes, keyed.bytes, "keyed must differ from untagged");
+    assert_eq!(keyed.algorithm.name(), "blake3-keyed");
+    // Different keys produce different digests.
+    let keyed_other = to_canon_digest_with(&value, &DigestStrategy::blake3_keyed([8u8; 32]))?;
+    assert_ne!(keyed.bytes, keyed_other.bytes, "different keys must diverge");
+    Ok(())
+}
+
+#[test]
+fn strategy_blake3_domain_separated_distinguishes_contexts() -> Result<(), JcsError> {
+    let value = json!({"payload": 42});
+    let ctx_a = to_canon_digest_with(
+        &value,
+        &DigestStrategy::blake3_domain_separated("vertrule.receipt.v1"),
+    )?;
+    let ctx_b = to_canon_digest_with(
+        &value,
+        &DigestStrategy::blake3_domain_separated("vertrule.policy.v1"),
+    )?;
+    assert_ne!(ctx_a.bytes, ctx_b.bytes, "different contexts must diverge");
+    assert_eq!(ctx_a.algorithm.name(), "blake3-domain-separated");
+    Ok(())
+}
+
+#[test]
+fn strategy_sha256_reports_unsupported() {
+    let value = json!({"x": 1});
+    let result = to_canon_digest_with(&value, &DigestStrategy::sha256());
+    match result {
+        Err(JcsError::UnsupportedAlgorithm(_)) => {}
+        other => panic!("expected UnsupportedAlgorithm, got {other:?}"),
+    }
+}
+
+#[test]
+fn canonical_digest_carries_algorithm() -> Result<(), JcsError> {
+    let value = json!({"a": 1});
+    let result = to_canon_digest_with(&value, &DigestStrategy::blake3_untagged())?;
+    // The typed output remembers which algorithm produced it so callers
+    // can record it in receipts without out-of-band convention.
+    match result.algorithm {
+        DigestAlgorithm::Blake3Untagged => {}
+        other => panic!("expected Blake3Untagged, got {other:?}"),
+    }
+    assert_eq!(result.bytes.len(), 32);
+    Ok(())
 }

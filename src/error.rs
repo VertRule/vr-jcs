@@ -14,6 +14,10 @@ pub enum JcsError {
     InvalidNumber(String),
     /// The input exceeded [`MAX_NESTING_DEPTH`].
     NestingDepthExceeded,
+    /// A digest algorithm variant was requested but is not wired in this
+    /// build. Carried so callers can distinguish "algorithm is declared but
+    /// unimplemented here" from "algorithm is wrong".
+    UnsupportedAlgorithm(String),
 }
 
 impl std::fmt::Display for JcsError {
@@ -26,6 +30,9 @@ impl std::fmt::Display for JcsError {
                 f,
                 "JCS nesting depth exceeded maximum of {MAX_NESTING_DEPTH}"
             ),
+            Self::UnsupportedAlgorithm(name) => {
+                write!(f, "digest algorithm not wired in this build: {name}")
+            }
         }
     }
 }
@@ -34,7 +41,10 @@ impl std::error::Error for JcsError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Json(e) => Some(e),
-            Self::InvalidString(_) | Self::InvalidNumber(_) | Self::NestingDepthExceeded => None,
+            Self::InvalidString(_)
+            | Self::InvalidNumber(_)
+            | Self::NestingDepthExceeded
+            | Self::UnsupportedAlgorithm(_) => None,
         }
     }
 }
@@ -66,7 +76,9 @@ impl JcsError {
     pub fn into_info(self) -> JcsErrorInfo {
         match self {
             Self::Json(err) => JcsErrorInfo::Json(err),
-            Self::InvalidString(msg) | Self::InvalidNumber(msg) => JcsErrorInfo::Validation(msg),
+            Self::InvalidString(msg)
+            | Self::InvalidNumber(msg)
+            | Self::UnsupportedAlgorithm(msg) => JcsErrorInfo::Validation(msg),
             other => JcsErrorInfo::Validation(other.to_string()),
         }
     }
