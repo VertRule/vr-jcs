@@ -5,9 +5,11 @@
 
 #![deny(unused_imports)]
 
+use vr_jcs::canonical_bytes_from_slice;
 use vr_jcs::canonicalize;
 use vr_jcs::to_canon_bytes_from_slice;
 use vr_jcs::to_canon_string_from_str;
+use vr_jcs::CanonicalBytes;
 use vr_jcs::CanonicalDigest;
 use vr_jcs::DigestAlgorithm;
 use vr_jcs::DigestStrategy;
@@ -92,6 +94,33 @@ fn fixed_blake3_convenience_symbols_are_usable() -> Result<(), JcsError> {
 
     let from_slice = to_canon_blake3_digest_from_slice(br#"{"a":1}"#)?;
     assert_eq!(from_value, from_slice);
+
+    Ok(())
+}
+
+#[test]
+fn canonical_bytes_newtype_wraps_and_matches_raw_path() -> Result<(), JcsError> {
+    let raw = to_canon_bytes_from_slice(br#"{"b":2,"a":1}"#)?;
+    let wrapped: CanonicalBytes = canonical_bytes_from_slice(br#"{"b":2,"a":1}"#)?;
+
+    assert_eq!(wrapped.as_slice(), raw.as_slice());
+    assert_eq!(wrapped.len(), raw.len());
+    assert!(!wrapped.is_empty());
+
+    // Debug must not leak the bytes themselves.
+    let debug_repr = format!("{wrapped:?}");
+    assert!(
+        debug_repr.contains("CanonicalBytes") && debug_repr.contains("len"),
+        "unexpected Debug shape: {debug_repr}"
+    );
+    assert!(
+        !debug_repr.contains(r#""a":1"#),
+        "Debug must not include bytes: {debug_repr}"
+    );
+
+    // into_vec gives ownership back; equal to the raw path.
+    let recovered = wrapped.into_vec();
+    assert_eq!(recovered, raw);
 
     Ok(())
 }

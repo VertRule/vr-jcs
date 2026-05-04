@@ -1,0 +1,13 @@
+schema_version: 1
+capability_id: docs.vr_jcs_release_notes
+capability_version: v1
+domain: docs
+name: "vr-jcs Release Notes"
+maturity: experimental
+surface: internal
+implementation:
+  primary_module: vr-jcs/RELEASE.md
+  entrypoints:
+    - type: module
+      symbol: vr_jcs_release_notes
+supersedes: []

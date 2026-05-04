@@ -1,7 +1,9 @@
-# vr-jcs Public Surface (v0.3)
+# vr-jcs Public Surface (v0.4)
 
 Canonical RFC 8785 JSON Canonicalization Scheme implementation
-for the `VertRule` ecosystem.
+for the `VertRule` ecosystem. v0.4 adds the canonical digest API
+and the `CanonicalBytes` newtype boundary; the v0.3 strict / typed
+distinction below carries forward unchanged.
 
 ## API Path Distinction
 
@@ -49,6 +51,99 @@ the full strict parse + canonical emit pipeline.
 pub fn canonicalize(v: &mut serde_json::Value) -> Result<(), JcsError>;
 ```
 
+## Strict-Bytes Newtype (v0.4)
+
+`CanonicalBytes` is a wrapper over canonical JCS output bytes whose
+construction is crate-private. Digest, signature, and receipt APIs
+can statically require "bytes that came out of JCS" rather than
+accepting any `&[u8]`. There is no `AsRef<[u8]>` or `Deref` impl;
+every coercion to `&[u8]` goes through `as_slice` (or `into_vec` at
+ownership-transfer boundaries) so escapes are greppable. The `Debug`
+impl shows the byte length only — never the bytes themselves —
+preventing accidental receipt leaks in logs.
+
+```rust
+pub fn canonical_bytes_from_slice(json: &[u8]) -> Result<CanonicalBytes, JcsError>;
+
+pub struct CanonicalBytes(/* private */);
+
+impl CanonicalBytes {
+    pub fn as_slice(&self) -> &[u8];
+    pub fn len(&self) -> usize;
+    pub fn is_empty(&self) -> bool;
+    pub fn into_vec(self) -> Vec<u8>;
+}
+```
+
+Prefer `canonical_bytes_from_slice` over `to_canon_bytes_from_slice`
+on any path that will feed the bytes into a digest, signature, or
+receipt primitive.
+
+## Canonical Digest API (v0.4)
+
+`to_canon_digest_with` bundles canonicalization with a named digest
+algorithm and returns a typed `CanonicalDigest` that records the
+algorithm alongside the bytes. Use this when the algorithm choice is
+governance-bearing (keyed or domain-separated digests). For the
+common fixed-policy `blake3::hash(canonical_bytes)` pattern, the
+two BLAKE3 helpers ship an opinionated 32-byte output.
+
+```rust
+pub fn to_canon_digest_with(
+    value: &serde_json::Value,
+    strategy: &DigestStrategy,
+) -> Result<CanonicalDigest, JcsError>;
+
+pub fn to_canon_blake3_digest(
+    value: &serde_json::Value,
+) -> Result<[u8; 32], JcsError>;
+
+pub fn to_canon_blake3_digest_from_slice(
+    json: &[u8],
+) -> Result<[u8; 32], JcsError>;
+```
+
+### `DigestAlgorithm` and `DigestStrategy`
+
+`DigestAlgorithm` is `#[non_exhaustive]` so future algorithms are
+additive. Callers construct algorithms through `DigestStrategy`
+constructors — never by raw enum construction — so adding variants
+does not break match arms downstream. BLAKE3 domain separation uses
+`blake3::derive_key(context, bytes)`. SHA-256 is declared in the API
+but currently returns `JcsError::UnsupportedAlgorithm` at call time;
+the variant exists so receipt schemas and policy packs can reference
+it before the implementation lands.
+
+```rust
+#[non_exhaustive]
+pub enum DigestAlgorithm {
+    Blake3Untagged,
+    Blake3Keyed { key: [u8; 32] },
+    Blake3DomainSeparated { context: String },
+    Sha256,
+}
+
+impl DigestAlgorithm {
+    pub const fn name(&self) -> &'static str;
+}
+
+pub struct DigestStrategy {
+    pub algorithm: DigestAlgorithm,
+}
+
+impl DigestStrategy {
+    pub const fn blake3_untagged() -> Self;
+    pub const fn blake3_keyed(key: [u8; 32]) -> Self;
+    pub fn blake3_domain_separated(context: impl Into<String>) -> Self;
+    pub const fn sha256() -> Self;
+}
+
+pub struct CanonicalDigest {
+    pub algorithm: DigestAlgorithm,
+    pub bytes: Vec<u8>,
+}
+```
+
 ## Constants
 
 ```rust
@@ -65,6 +160,9 @@ pub enum JcsError {
     InvalidString(String),
     InvalidNumber(String),
     NestingDepthExceeded,
+    /// New in v0.4 — a digest algorithm variant was requested but is not
+    /// wired in this build. Today: `Sha256` strategies fail with this.
+    UnsupportedAlgorithm(String),
 }
 ```
 
