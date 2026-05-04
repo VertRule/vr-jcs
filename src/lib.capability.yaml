@@ -10,4 +10,13 @@ implementation:
   entrypoints:
     - type: module
       symbol: lib
+  owner_files:
+    - vr-jcs/src/lib.rs
+    - vr-jcs/src/error.rs
+    - vr-jcs/src/lib_tests.rs
+    - vr-jcs/tests/conformance.rs
+    - vr-jcs/tests/deprecated_typed_api.rs
+    - vr-jcs/tests/differential.rs
+    - vr-jcs/tests/known_receipt_fixtures.rs
+    - vr-jcs/tests/public_surface.rs
 supersedes: []
