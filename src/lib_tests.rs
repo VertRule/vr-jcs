@@ -362,10 +362,12 @@ fn to_canon_blake3_digest_matches_manual_pairing() -> Result<(), JcsError> {
 #[test]
 fn to_canon_blake3_digest_from_slice_matches_value_path() -> Result<(), JcsError> {
     let from_bytes = to_canon_blake3_digest_from_slice(br#"{"a":1,"b":[2,3]}"#)?;
-    let pretty = to_canon_blake3_digest_from_slice(br#"{
+    let pretty = to_canon_blake3_digest_from_slice(
+        br#"{
         "b": [2, 3],
         "a": 1
-    }"#)?;
+    }"#,
+    )?;
     assert_eq!(from_bytes, pretty);
 
     let via_value = to_canon_blake3_digest(&json!({"a": 1, "b": [2, 3]}))?;
@@ -413,11 +415,17 @@ fn strategy_blake3_keyed_differs_from_untagged() -> Result<(), JcsError> {
     let value = json!({"receipt_id": "abc"});
     let untagged = to_canon_digest_with(&value, &DigestStrategy::blake3_untagged())?;
     let keyed = to_canon_digest_with(&value, &DigestStrategy::blake3_keyed([7u8; 32]))?;
-    assert_ne!(untagged.bytes, keyed.bytes, "keyed must differ from untagged");
+    assert_ne!(
+        untagged.bytes, keyed.bytes,
+        "keyed must differ from untagged"
+    );
     assert_eq!(keyed.algorithm.name(), "blake3-keyed");
     // Different keys produce different digests.
     let keyed_other = to_canon_digest_with(&value, &DigestStrategy::blake3_keyed([8u8; 32]))?;
-    assert_ne!(keyed.bytes, keyed_other.bytes, "different keys must diverge");
+    assert_ne!(
+        keyed.bytes, keyed_other.bytes,
+        "different keys must diverge"
+    );
     Ok(())
 }
 

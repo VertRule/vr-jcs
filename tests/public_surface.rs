@@ -62,8 +62,7 @@ fn digest_strategy_symbols_are_usable() -> Result<(), JcsError> {
     let keyed = to_canon_digest_with(&value, &DigestStrategy::blake3_keyed([0u8; 32]))?;
     assert_ne!(keyed.bytes, plain.bytes, "keyed must differ from plain");
 
-    let domain =
-        to_canon_digest_with(&value, &DigestStrategy::blake3_domain_separated("test"))?;
+    let domain = to_canon_digest_with(&value, &DigestStrategy::blake3_domain_separated("test"))?;
     assert_eq!(domain.algorithm.name(), "blake3-domain-separated");
 
     // SHA-256 variant is declared but unimplemented; constructor must be
