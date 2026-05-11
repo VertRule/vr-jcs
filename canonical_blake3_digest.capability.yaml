@@ -14,16 +14,10 @@ implementation:
     - type: module
       symbol: schema.canonical_blake3_digest
   owner_files:
-    - vr-jcs/**
+    - vr-jcs/src/digest.rs
+    - vr-jcs/canonical_blake3_digest.capability.yaml
 aliases: []
 supersedes: []
 owner_files:
-  - vr-jcs/**
-# NOTE (deepening review, 2026-05-04): owner_files SHOULD be narrowed
-# from `vr-jcs/**` to just `vr-jcs/src/digest.rs` after the
-# decomposition that put the BLAKE3 fixed-policy wrappers in
-# `digest.rs`. Attempted contraction was blocked by the Lane-C
-# boundary-adjudication gate on `vr-jcs/**`
-# (request_boundary_adjudication, requires_signature=true). Leave the
-# blanket for now; revisit alongside `schema.canonical_digest` as a
-# single signed boundary-adjudication request.
+  - vr-jcs/src/digest.rs
+  - vr-jcs/canonical_blake3_digest.capability.yaml
