@@ -5,6 +5,19 @@ ecosystem. v0.4 adds first-class digest and canonical-bytes APIs so
 callers no longer have to hand-thread `blake3::hash` over canonical
 bytes.
 
+## What changed in v0.4.1
+
+- **`strict_parse` submodule promoted to first-class** — strict
+  admission helpers are now addressable under `vr_jcs::strict_parse::*`
+  with `parse_json_value_no_duplicates`, `deserialize_json_value_no_duplicates`,
+  `validate_string_contents`, `is_safe_integer`, and `MAX_SAFE_INTEGER`.
+  Top-level `#[doc(hidden)]` re-exports preserved for back-compat;
+  new code SHOULD prefer the submodule path
+- **Module split for locality** — `src/lib.rs` decomposed into
+  `canonicalize`, `strict_parse`, `digest`, `canonical_bytes`,
+  `number`, and `error` modules. Public `vr_jcs::*` surface unchanged;
+  internal-only reorganization
+
 ## What changed since v0.3
 
 - **Canonical digest API** — `to_canon_digest_with(value, strategy)`
