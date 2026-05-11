@@ -13,6 +13,11 @@ implementation:
   owner_files:
     - vr-jcs/src/lib.rs
     - vr-jcs/src/error.rs
+    - vr-jcs/src/number.rs
+    - vr-jcs/src/strict_parse.rs
+    - vr-jcs/src/canonical_bytes.rs
+    - vr-jcs/src/digest.rs
+    - vr-jcs/src/canonicalize.rs
     - vr-jcs/src/lib_tests.rs
     - vr-jcs/tests/conformance.rs
     - vr-jcs/tests/deprecated_typed_api.rs

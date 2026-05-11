@@ -1,5 +1,5 @@
 use super::*;
-use serde_json::json;
+use serde_json::{json, Value};
 
 /// Non-deprecated helper: Value → canonical string via internal path.
 fn canon_str(value: &serde_json::Value) -> Result<String, JcsError> {
@@ -453,6 +453,48 @@ fn strategy_sha256_reports_unsupported() {
         matches!(result, Err(JcsError::UnsupportedAlgorithm(_))),
         "expected UnsupportedAlgorithm, got {result:?}"
     );
+}
+
+// ── canonicalize() validates strings and numbers (Candidate 4) ────
+
+#[test]
+fn canonicalize_rejects_noncharacter_in_string_value() {
+    let mut v = json!({"good_key": "\u{FDD0}"});
+    let result = canonicalize(&mut v);
+    assert!(
+        matches!(result, Err(JcsError::InvalidString(_))),
+        "expected InvalidString, got {result:?}"
+    );
+}
+
+#[test]
+fn canonicalize_rejects_noncharacter_in_property_name() {
+    let mut map = serde_json::Map::new();
+    map.insert("\u{FDD0}".to_string(), json!(1));
+    let mut v = Value::Object(map);
+    let result = canonicalize(&mut v);
+    assert!(
+        matches!(result, Err(JcsError::InvalidString(_))),
+        "expected InvalidString, got {result:?}"
+    );
+}
+
+#[test]
+fn canonicalize_rejects_non_exact_large_integer() {
+    let mut v = json!({"big": 9_007_199_254_740_993u64});
+    let result = canonicalize(&mut v);
+    assert!(
+        matches!(result, Err(JcsError::InvalidNumber(_))),
+        "expected InvalidNumber, got {result:?}"
+    );
+}
+
+#[test]
+fn canonicalize_accepts_clean_input_unchanged() -> Result<(), JcsError> {
+    let mut v = json!({"z": [{"b": 2, "a": 1}], "a": 4});
+    canonicalize(&mut v)?;
+    assert_eq!(canon_str(&v)?, r#"{"a":4,"z":[{"a":1,"b":2}]}"#);
+    Ok(())
 }
 
 #[test]

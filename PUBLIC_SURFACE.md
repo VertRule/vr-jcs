@@ -186,17 +186,55 @@ impl JcsError {
 collapse into `Validation` via `Display`, so adding variants to `JcsError`
 will not break downstream matches on `JcsErrorInfo`.
 
-## Not Part of the Stable v0.3 Contract
+## `strict_parse` Submodule (v0.4.1)
 
-The following symbols are `pub` for sibling-crate access but are
-marked `#[doc(hidden)]` and excluded from semver protection:
+The strict admission helpers are first-class under `vr_jcs::strict_parse`:
 
-- `#[doc(hidden)] deserialize_json_value_no_duplicates`
-- `#[doc(hidden)] validate_string_contents`
-- `#[doc(hidden)] is_safe_integer`
+```rust
+pub mod strict_parse {
+    pub const MAX_SAFE_INTEGER: i64 = 9_007_199_254_740_991;
+    pub fn parse_json_value_no_duplicates(json: &[u8]) -> Result<Value, JcsError>;
+    pub fn deserialize_json_value_no_duplicates<'de, D>(de: D) -> Result<Value, D::Error>
+        where D: Deserializer<'de>;
+    pub fn validate_string_contents(value: &str, context: &str) -> Result<(), String>;
+    pub const fn is_safe_integer(value: i64) -> bool;
+}
+```
 
-These may change or be removed without a semver bump. They ship
-as `#[doc(hidden)]` in v0.3.0 because `vertrule-schemas` still
-depends on `deserialize_json_value_no_duplicates`. A future release
-may gate them behind `feature = "unstable"` or inline them into
-consuming crates.
+Module-level documentation explains the depth-via-sentinel encoding
+and the `'$'`-prefix bypass for `serde_json` `arbitrary_precision`
+internal sentinels in one place.
+
+For backward compatibility, the top-level re-exports of
+`deserialize_json_value_no_duplicates`, `validate_string_contents`,
+and `is_safe_integer` remain available under `vr_jcs::*` (marked
+`#[doc(hidden)]` to nudge new code to the submodule path).
+`parse_json_value_no_duplicates` is reachable only via
+`vr_jcs::strict_parse::*` — it had no top-level re-export prior.
+
+## Module layout (v0.4.1)
+
+```
+src/canonicalize.rs      RFC 8785 emit + in-place key sort
+src/strict_parse.rs      strict admission parser
+src/digest.rs            DigestStrategy + CanonicalDigest API
+src/canonical_bytes.rs   CanonicalBytes newtype
+src/number.rs            ECMAScript shortest-decimal renderer
+src/error.rs             JcsError + JcsErrorInfo
+src/lib.rs               public-API surface, MAX_NESTING_DEPTH
+```
+
+The split is internal locality only — no public symbol moved off the
+`vr_jcs::*` root, so all 318 in-tree consumers continue to compile
+unchanged. New code SHOULD prefer `vr_jcs::strict_parse::*` when
+reaching for I-JSON validation primitives.
+
+## `JcsErrorInfo` is a load-bearing boundary
+
+The two-variant `JcsErrorInfo` projection is **not** decoration over a
+flatter `JcsError`. Future architecture passes MUST NOT propose
+collapsing them: `JcsError` is `#[non_exhaustive]` precisely because
+`JcsErrorInfo` is exhaustive. Future variants of `JcsError` flow into
+`JcsErrorInfo::Validation` via `Display`, so adding variants does not
+break downstream `match` statements on `JcsErrorInfo`. The projection
+is the gate against `JcsError` evolution breaking sibling crates.
