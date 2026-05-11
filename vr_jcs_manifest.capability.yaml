@@ -14,8 +14,10 @@ implementation:
     - type: module
       symbol: schema.vr_jcs_manifest
   owner_files:
-    - vr-jcs/**
+    - vr-jcs/Cargo.toml
+    - vr-jcs/vr_jcs_manifest.capability.yaml
 aliases: []
 supersedes: []
 owner_files:
-  - vr-jcs/**
+  - vr-jcs/Cargo.toml
+  - vr-jcs/vr_jcs_manifest.capability.yaml
