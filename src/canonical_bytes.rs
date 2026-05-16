@@ -23,6 +23,18 @@ use std::fmt;
 /// bytes. Dumping raw canonical JSON into a log is a common way to
 /// accidentally leak receipt contents; callers that want the bytes
 /// must ask for them.
+///
+/// # External construction is rejected at compile time
+///
+/// `from_jcs` is `pub(crate)`. ADR-001 Ratification Criterion #10 binds
+/// this privacy as a `compile_fail` doctest:
+///
+/// ```compile_fail
+/// // This must fail to compile — `from_jcs` is pub(crate) and unreachable
+/// // from external code. External code MUST route through the strict
+/// // path via `canonical_bytes_from_slice`.
+/// let _ = vr_jcs::CanonicalBytes::from_jcs(vec![1, 2, 3]);
+/// ```
 #[derive(Clone, PartialEq, Eq)]
 pub struct CanonicalBytes(Vec<u8>);
 
