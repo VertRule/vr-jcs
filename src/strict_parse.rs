@@ -48,6 +48,15 @@ pub const MAX_SAFE_INTEGER: i64 = 9_007_199_254_740_991;
 /// [`JcsError::NestingDepthExceeded`].
 const DEPTH_EXCEEDED_SENTINEL: &str = "nesting depth exceeded maximum of ";
 
+/// Sentinel substring used to classify duplicate-property-name errors
+/// emitted by [`NoDuplicateValueVisitor::visit_map`]. Detected via
+/// [`str::contains`] (not `starts_with`) because serde may prepend
+/// line/column context to the custom message. Per ADR-003 § Sentinel
+/// detection note, any future code path that emits a similarly-shaped
+/// duplicate-key error MUST route through this same substring so
+/// classification stays uniform.
+const DUPLICATE_KEY_SENTINEL: &str = "duplicate property name `";
+
 /// Parse untrusted JSON bytes, rejecting duplicate property names,
 /// I-JSON-forbidden code points, and JSON numbers that cannot be admitted
 /// under the JCS number contract, while enforcing [`MAX_NESTING_DEPTH`].
@@ -69,8 +78,11 @@ pub fn parse_json_value_no_duplicates(json: &[u8]) -> Result<Value, JcsError> {
     // MAX_NESTING_DEPTH via NoDuplicateValueSeed instead.
     deserializer.disable_recursion_limit();
     let value = deserialize_json_value_no_duplicates(&mut deserializer).map_err(|e| {
-        if e.to_string().starts_with(DEPTH_EXCEEDED_SENTINEL) {
+        let msg = e.to_string();
+        if msg.starts_with(DEPTH_EXCEEDED_SENTINEL) {
             JcsError::NestingDepthExceeded
+        } else if msg.contains(DUPLICATE_KEY_SENTINEL) {
+            JcsError::DuplicateKey(msg)
         } else {
             JcsError::Json(e)
         }
