@@ -48,13 +48,20 @@ pub const MAX_SAFE_INTEGER: i64 = 9_007_199_254_740_991;
 /// [`JcsError::NestingDepthExceeded`].
 const DEPTH_EXCEEDED_SENTINEL: &str = "nesting depth exceeded maximum of ";
 
-/// Parse untrusted JSON bytes, rejecting duplicate property names and
-/// I-JSON-forbidden code points, enforcing [`MAX_NESTING_DEPTH`].
+/// Parse untrusted JSON bytes, rejecting duplicate property names,
+/// I-JSON-forbidden code points, and JSON numbers that cannot be admitted
+/// under the JCS number contract, while enforcing [`MAX_NESTING_DEPTH`].
+///
+/// Number admission uses [`crate::number::validate_number`] so this
+/// entry point enforces the same admission predicate as the canonical
+/// emit pipeline. ADR-001 binds this uniformity across all strict-path
+/// entry points.
 ///
 /// # Errors
 ///
 /// - [`JcsError::Json`] for malformed JSON or duplicate property names.
 /// - [`JcsError::InvalidString`] for forbidden noncharacters.
+/// - [`JcsError::InvalidNumber`] for non-finite or non-exactly-representable numbers.
 /// - [`JcsError::NestingDepthExceeded`] for depth limit breach.
 pub fn parse_json_value_no_duplicates(json: &[u8]) -> Result<Value, JcsError> {
     let mut deserializer = serde_json::Deserializer::from_slice(json);
@@ -69,7 +76,19 @@ pub fn parse_json_value_no_duplicates(json: &[u8]) -> Result<Value, JcsError> {
         }
     })?;
     deserializer.end()?;
+    validate_all_numbers(&value)?;
     Ok(value)
+}
+
+/// Recursively validate every `Number` in `value` against the JCS
+/// admission predicate defined in [`crate::number::validate_number`].
+fn validate_all_numbers(value: &Value) -> Result<(), JcsError> {
+    match value {
+        Value::Number(n) => crate::number::validate_number(n),
+        Value::Array(arr) => arr.iter().try_for_each(validate_all_numbers),
+        Value::Object(map) => map.values().try_for_each(validate_all_numbers),
+        Value::Null | Value::Bool(_) | Value::String(_) => Ok(()),
+    }
 }
 
 /// Deserialize a JSON value while rejecting duplicate property names.
