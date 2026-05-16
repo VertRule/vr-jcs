@@ -117,6 +117,24 @@ fn error_projection_signatures_compile() {
 }
 
 #[test]
+fn jcs_error_code_and_duplicate_key_variant_compile() {
+    // ADR-003 Ratification Criterion C5 — pins the `JcsError::DuplicateKey`
+    // variant and the `JcsError::code(&self) -> &'static str` signature
+    // at the public surface.
+    let err = JcsError::DuplicateKey("duplicate property name `x`".to_string());
+
+    // `code()` returns `&'static str` per ADR-003 Decision item 1.
+    let code: &'static str = err.code();
+    assert_eq!(code, "duplicate-key");
+
+    // Variant shape is single-`String` tuple; reachable externally.
+    assert!(matches!(&err, JcsError::DuplicateKey(_)));
+    if let JcsError::DuplicateKey(msg) = err {
+        assert!(!msg.is_empty(), "DuplicateKey carries a diagnostic message");
+    }
+}
+
+#[test]
 fn strict_parse_module_signatures_compile() -> Result<(), JcsError> {
     let _: i64 = strict_parse::MAX_SAFE_INTEGER;
 
