@@ -5,7 +5,7 @@
     {
       "id": "utf16_property_sorting",
       "description": "Object property names sorted by UTF-16 code units, not UTF-8 bytes",
-      "input": {"\\u20ac": "Euro", "\\r": "CR", "1": "One", "\\u0080": "Ctrl"},
+      "input": {"\u20ac": "Euro", "\r": "CR", "1": "One", "\u0080": "Ctrl"},
       "expected": "{\"\\r\":\"CR\",\"1\":\"One\",\"\u0080\":\"Ctrl\",\"€\":\"Euro\"}"
     },
     {
