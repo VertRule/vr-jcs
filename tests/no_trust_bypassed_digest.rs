@@ -77,11 +77,14 @@ const ALLOWLIST_PATH_FRAGMENTS: &[&str] = &[
     "signature_tests.rs",
     "bundle_tests.rs",
     "rbh_tests.rs",
-    // TODO(ADR-002-C7): migrate `vertrule-verifier/src/bundle.rs` digest
-    // computation to `to_canon_digest_with` or `to_canon_blake3_digest`
-    // so receipt-bound code paths carry algorithm-with-output via
-    // `CanonicalDigest`.
-    "vertrule-verifier/src/bundle.rs",
+    // Migrated 2026-05-16 (vertrule-verifier commit 2bdb156): the
+    // bundle.rs sidecar digest bypass was replaced by the sealed
+    // `SidecarDigest::recompute_from_value` constructor in
+    // `identity.rs`. bundle.rs no longer pairs a canonical-bytes
+    // producer with `blake3::*` in the same file.
+    //
+    // Spec-conformance test for the migration's byte-stability:
+    "vertrule-verifier/src/identity_tests.rs",
     // TODO(ADR-002-C7): migrate `vertrule-verifier/src/rbh.rs` digest
     // computation to the strategy-bearing API. RBH event hashes feed
     // receipts; bypass risks algorithm misattribution.
