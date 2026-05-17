@@ -95,12 +95,11 @@ const ALLOWLIST_PATH_FRAGMENTS: &[&str] = &[
     // `ReceiptDigest`, `ScopeDigest`, `PolicyDigest`, and `SchemaDigest`
     // constructors. The files no longer trigger the C7 pattern pairing,
     // so the allowlist no longer needs to suppress them.
-    // TODO(ADR-002-C7): migrate `vertrule-verifier/src/wasm.rs` digest
-    // computation (5 blake3::hash call sites paired with strict-path
-    // canonicalization) to the strategy-bearing API. The WASM surface
-    // emits receipt-equivalent material to consumers; algorithm-with-output
-    // binding must travel with it.
-    "vertrule-verifier/src/wasm.rs",
+    // Migrated 2026-05-16 (vertrule-verifier commit 8a5a798): the
+    // 5 wasm.rs digest bypasses (1 production `digest_hex`, 4 test
+    // fixtures) were replaced by sealed `GenericByteDigest` and
+    // `PayloadEventDigest` constructors in `identity.rs`. wasm.rs no
+    // longer contains direct `blake3::*` calls.
 ];
 
 struct Finding {
