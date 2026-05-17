@@ -86,12 +86,11 @@ const ALLOWLIST_PATH_FRAGMENTS: &[&str] = &[
     // computation to the strategy-bearing API. RBH event hashes feed
     // receipts; bypass risks algorithm misattribution.
     "vertrule-verifier/src/rbh.rs",
-    // TODO(ADR-002-C7): migrate `vertrule-schemas/src/receipts/commitment.rs`
-    // commitment digest to the strategy-bearing API.
-    "vertrule-schemas/src/receipts/commitment.rs",
-    // TODO(ADR-002-C7): migrate `vertrule-schemas/src/governance/decision.rs`
-    // surface-decision and binding-id digests to the strategy-bearing API.
-    "vertrule-schemas/src/governance/decision.rs",
+    // Migrated 2026-05-16 (vertrule-schemas commit 0dd3c82): the
+    // commitment and decision bypasses were replaced by sealed
+    // `ReceiptDigest`, `ScopeDigest`, `PolicyDigest`, and `SchemaDigest`
+    // constructors. The files no longer trigger the C7 pattern pairing,
+    // so the allowlist no longer needs to suppress them.
     // TODO(ADR-002-C7): migrate `vertrule-verifier/src/wasm.rs` digest
     // computation (5 blake3::hash call sites paired with strict-path
     // canonicalization) to the strategy-bearing API. The WASM surface
