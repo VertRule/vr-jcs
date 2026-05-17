@@ -85,10 +85,11 @@ const ALLOWLIST_PATH_FRAGMENTS: &[&str] = &[
     //
     // Spec-conformance test for the migration's byte-stability:
     "vertrule-verifier/src/identity_tests.rs",
-    // TODO(ADR-002-C7): migrate `vertrule-verifier/src/rbh.rs` digest
-    // computation to the strategy-bearing API. RBH event hashes feed
-    // receipts; bypass risks algorithm misattribution.
-    "vertrule-verifier/src/rbh.rs",
+    // Migrated 2026-05-16 (vertrule-verifier commit 2ba99a2): the
+    // RBH event-hash bypass in `verify_event_hash` was replaced by
+    // the sealed `PayloadEventDigest::recompute_from_payload_value`
+    // constructor in `identity.rs`. rbh.rs no longer pairs a
+    // canonical-bytes producer with `blake3::*` in the same file.
     // Migrated 2026-05-16 (vertrule-schemas commit 0dd3c82): the
     // commitment and decision bypasses were replaced by sealed
     // `ReceiptDigest`, `ScopeDigest`, `PolicyDigest`, and `SchemaDigest`
