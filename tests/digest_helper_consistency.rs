@@ -15,8 +15,8 @@
 //!    two-step (strict-parse, then Value-input helper) path.
 
 use vr_jcs::{
-    strict_parse, to_canon_blake3_digest, to_canon_blake3_digest_from_slice,
-    to_canon_digest_with, DigestStrategy, JcsError,
+    strict_parse, to_canon_blake3_digest, to_canon_blake3_digest_from_slice, to_canon_digest_with,
+    DigestStrategy, JcsError,
 };
 
 #[test]
@@ -24,8 +24,7 @@ fn fixed_helper_and_strategy_yield_same_bytes_on_value() -> Result<(), JcsError>
     let value = serde_json::json!({"alpha": 1, "beta": [2, 3]});
 
     let fixed: [u8; 32] = to_canon_blake3_digest(&value)?;
-    let strategy =
-        to_canon_digest_with(&value, &DigestStrategy::blake3_untagged())?;
+    let strategy = to_canon_digest_with(&value, &DigestStrategy::blake3_untagged())?;
 
     assert_eq!(strategy.bytes.len(), 32);
     assert_eq!(
@@ -37,8 +36,7 @@ fn fixed_helper_and_strategy_yield_same_bytes_on_value() -> Result<(), JcsError>
 }
 
 #[test]
-fn fixed_from_slice_helper_matches_value_helper_after_strict_parse()
--> Result<(), JcsError> {
+fn fixed_from_slice_helper_matches_value_helper_after_strict_parse() -> Result<(), JcsError> {
     let json: &[u8] = br#"{"alpha":1,"beta":[2,3]}"#;
 
     let from_slice: [u8; 32] = to_canon_blake3_digest_from_slice(json)?;

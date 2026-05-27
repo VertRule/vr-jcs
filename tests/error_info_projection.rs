@@ -26,7 +26,10 @@ fn duplicate_key_projects_to_validation_with_message() {
     let info = JcsError::DuplicateKey("duplicate property name `x`".to_string()).into_info();
     assert!(matches!(&info, JcsErrorInfo::Validation(_)));
     if let JcsErrorInfo::Validation(msg) = info {
-        assert!(!msg.is_empty(), "DuplicateKey projection must carry a non-empty message");
+        assert!(
+            !msg.is_empty(),
+            "DuplicateKey projection must carry a non-empty message"
+        );
     }
 }
 
@@ -35,7 +38,10 @@ fn invalid_string_projects_to_validation_with_message() {
     let info = JcsError::InvalidString("forbidden noncharacter U+FDD0".to_string()).into_info();
     assert!(matches!(&info, JcsErrorInfo::Validation(_)));
     if let JcsErrorInfo::Validation(msg) = info {
-        assert!(!msg.is_empty(), "InvalidString projection must carry a non-empty message");
+        assert!(
+            !msg.is_empty(),
+            "InvalidString projection must carry a non-empty message"
+        );
     }
 }
 
@@ -44,7 +50,10 @@ fn invalid_number_projects_to_validation_with_message() {
     let info = JcsError::InvalidNumber("non-exact integer 2^53+1".to_string()).into_info();
     assert!(matches!(&info, JcsErrorInfo::Validation(_)));
     if let JcsErrorInfo::Validation(msg) = info {
-        assert!(!msg.is_empty(), "InvalidNumber projection must carry a non-empty message");
+        assert!(
+            !msg.is_empty(),
+            "InvalidNumber projection must carry a non-empty message"
+        );
     }
 }
 
@@ -66,6 +75,9 @@ fn unsupported_algorithm_projects_to_validation_with_message() {
     let info = JcsError::UnsupportedAlgorithm("sha256 not wired".to_string()).into_info();
     assert!(matches!(&info, JcsErrorInfo::Validation(_)));
     if let JcsErrorInfo::Validation(msg) = info {
-        assert!(!msg.is_empty(), "UnsupportedAlgorithm projection must carry a non-empty message");
+        assert!(
+            !msg.is_empty(),
+            "UnsupportedAlgorithm projection must carry a non-empty message"
+        );
     }
 }

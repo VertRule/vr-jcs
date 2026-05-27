@@ -41,8 +41,7 @@ fn sha256_unsupported_algorithm_message_identifies_algorithm() {
     } else {
         // Sibling test asserts the variant; if we reach here in isolation
         // it means SHA-256 silently succeeded — surface that explicitly.
-        let result_again =
-            to_canon_digest_with(&value, &DigestStrategy::sha256());
+        let result_again = to_canon_digest_with(&value, &DigestStrategy::sha256());
         assert!(
             matches!(&result_again, Err(JcsError::UnsupportedAlgorithm(_))),
             "SHA-256 strategy must return UnsupportedAlgorithm; \

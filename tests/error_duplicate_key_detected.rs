@@ -16,8 +16,7 @@ use vr_jcs::JcsError;
 
 #[test]
 fn duplicate_key_routes_via_parse_json_value_no_duplicates() {
-    let result =
-        vr_jcs::strict_parse::parse_json_value_no_duplicates(br#"{"a":1,"a":2}"#);
+    let result = vr_jcs::strict_parse::parse_json_value_no_duplicates(br#"{"a":1,"a":2}"#);
     assert!(result.is_err(), "duplicate-key input must be rejected");
     if let Err(err) = result {
         assert!(

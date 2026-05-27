@@ -44,9 +44,9 @@ fn untagged_and_keyed_yield_distinct_bytes() -> Result<(), JcsError> {
 #[test]
 fn untagged_and_domain_separated_yield_distinct_bytes() -> Result<(), JcsError> {
     let untagged = digest_under_strategy(&DigestStrategy::blake3_untagged())?;
-    let domain = digest_under_strategy(
-        &DigestStrategy::blake3_domain_separated("vr-jcs ADR-002 C3 context"),
-    )?;
+    let domain = digest_under_strategy(&DigestStrategy::blake3_domain_separated(
+        "vr-jcs ADR-002 C3 context",
+    ))?;
     assert_ne!(
         untagged, domain,
         "Blake3Untagged and Blake3DomainSeparated must produce distinct \
@@ -69,8 +69,7 @@ fn keyed_with_different_keys_yield_distinct_bytes() -> Result<(), JcsError> {
 }
 
 #[test]
-fn domain_separated_with_different_contexts_yield_distinct_bytes()
--> Result<(), JcsError> {
+fn domain_separated_with_different_contexts_yield_distinct_bytes() -> Result<(), JcsError> {
     let context_a = "vr-jcs ADR-002 C3 context A";
     let context_b = "vr-jcs ADR-002 C3 context B";
     let a = digest_under_strategy(&DigestStrategy::blake3_domain_separated(context_a))?;

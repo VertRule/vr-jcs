@@ -26,8 +26,7 @@
 //! error projection is the obligation of ADR-003.
 
 use vr_jcs::{
-    canonical_bytes_from_slice, strict_parse, to_canon_bytes_from_slice,
-    to_canon_string_from_str,
+    canonical_bytes_from_slice, strict_parse, to_canon_bytes_from_slice, to_canon_string_from_str,
 };
 
 #[derive(Clone, Copy)]
@@ -44,9 +43,7 @@ impl StrictEntryPoint {
             Self::CanonBytesFromSlice => "to_canon_bytes_from_slice",
             Self::CanonStringFromStr => "to_canon_string_from_str",
             Self::CanonicalBytesFromSlice => "canonical_bytes_from_slice",
-            Self::StrictParseNoDuplicates => {
-                "strict_parse::parse_json_value_no_duplicates"
-            }
+            Self::StrictParseNoDuplicates => "strict_parse::parse_json_value_no_duplicates",
         }
     }
 

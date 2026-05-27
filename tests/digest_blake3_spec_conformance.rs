@@ -13,12 +13,9 @@
 //! (`canonical_bytes_from_slice`), which routes through the same
 //! `to_canon_bytes_value` emit pipeline used by `to_canon_digest_with`.
 
-use vr_jcs::{
-    canonical_bytes_from_slice, to_canon_digest_with, DigestStrategy, JcsError,
-};
+use vr_jcs::{canonical_bytes_from_slice, to_canon_digest_with, DigestStrategy, JcsError};
 
-const REPRESENTATIVE_INPUT: &[u8] =
-    br#"{"alpha":1,"nested":{"beta":2,"gamma":[3,4]}}"#;
+const REPRESENTATIVE_INPUT: &[u8] = br#"{"alpha":1,"nested":{"beta":2,"gamma":[3,4]}}"#;
 
 fn canonical_value_and_bytes() -> Result<(serde_json::Value, Vec<u8>), JcsError> {
     let canonical = canonical_bytes_from_slice(REPRESENTATIVE_INPUT)?;
@@ -31,8 +28,7 @@ fn canonical_value_and_bytes() -> Result<(serde_json::Value, Vec<u8>), JcsError>
 fn blake3_untagged_byte_matches_blake3_hash() -> Result<(), JcsError> {
     let (value, canonical) = canonical_value_and_bytes()?;
 
-    let via_strategy =
-        to_canon_digest_with(&value, &DigestStrategy::blake3_untagged())?;
+    let via_strategy = to_canon_digest_with(&value, &DigestStrategy::blake3_untagged())?;
     let direct = blake3::hash(&canonical);
 
     assert_eq!(
@@ -48,8 +44,7 @@ fn blake3_keyed_byte_matches_blake3_keyed_hash() -> Result<(), JcsError> {
     let (value, canonical) = canonical_value_and_bytes()?;
     let key: [u8; 32] = [0xAB; 32];
 
-    let via_strategy =
-        to_canon_digest_with(&value, &DigestStrategy::blake3_keyed(key))?;
+    let via_strategy = to_canon_digest_with(&value, &DigestStrategy::blake3_keyed(key))?;
     let direct = blake3::keyed_hash(&key, &canonical);
 
     assert_eq!(
@@ -65,10 +60,8 @@ fn blake3_domain_separated_byte_matches_blake3_derive_key() -> Result<(), JcsErr
     let (value, canonical) = canonical_value_and_bytes()?;
     let context = "vr-jcs ADR-002 ratification C1 conformance v1";
 
-    let via_strategy = to_canon_digest_with(
-        &value,
-        &DigestStrategy::blake3_domain_separated(context),
-    )?;
+    let via_strategy =
+        to_canon_digest_with(&value, &DigestStrategy::blake3_domain_separated(context))?;
     let direct = blake3::derive_key(context, &canonical);
 
     assert_eq!(

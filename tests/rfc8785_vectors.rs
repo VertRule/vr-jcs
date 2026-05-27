@@ -24,8 +24,7 @@
 //!   (canonicalization sorts object keys, not array elements).
 
 use vr_jcs::{
-    canonical_bytes_from_slice, to_canon_bytes_from_slice, to_canon_string_from_str,
-    JcsError,
+    canonical_bytes_from_slice, to_canon_bytes_from_slice, to_canon_string_from_str, JcsError,
 };
 
 const VECTORS_JSON: &str = include_str!("../test-vectors/rfc8785.json");
@@ -75,8 +74,7 @@ fn run_emit_vector_through_byte_emitting_entry_points(
 
 #[test]
 fn rfc8785_vector_set_emits_canonical_bytes() -> Result<(), JcsError> {
-    let vector_file: VectorFile =
-        serde_json::from_str(VECTORS_JSON).map_err(JcsError::from)?;
+    let vector_file: VectorFile = serde_json::from_str(VECTORS_JSON).map_err(JcsError::from)?;
 
     assert!(
         !vector_file.vectors.is_empty(),
@@ -103,11 +101,7 @@ fn insignificant_whitespace_in_source_bytes_is_stripped() -> Result<(), JcsError
     let input_str = r#"  {  "x"  :  1  ,  "y"  :  2  }  "#;
     let expected = br#"{"x":1,"y":2}"#;
 
-    run_emit_vector_through_byte_emitting_entry_points(
-        "whitespace_removed",
-        input_str,
-        expected,
-    )
+    run_emit_vector_through_byte_emitting_entry_points("whitespace_removed", input_str, expected)
 }
 
 #[test]
@@ -115,9 +109,5 @@ fn array_element_order_is_preserved_verbatim() -> Result<(), JcsError> {
     let input_str = r#"["beta","alpha","gamma","aleph"]"#;
     let expected = br#"["beta","alpha","gamma","aleph"]"#;
 
-    run_emit_vector_through_byte_emitting_entry_points(
-        "array_order_preserved",
-        input_str,
-        expected,
-    )
+    run_emit_vector_through_byte_emitting_entry_points("array_order_preserved", input_str, expected)
 }

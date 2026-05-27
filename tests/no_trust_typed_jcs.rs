@@ -30,10 +30,8 @@
 
 use std::path::{Path, PathBuf};
 
-const TRUST_BEARING_CONSUMER_DIRS: &[&str] = &[
-    "../vertrule-schemas/src",
-    "../vertrule-verifier/src",
-];
+const TRUST_BEARING_CONSUMER_DIRS: &[&str] =
+    &["../vertrule-schemas/src", "../vertrule-verifier/src"];
 
 fn line_has_typed_path_violation(line: &str) -> Option<&'static str> {
     if line.contains("vr_jcs::to_canon_bytes")

@@ -35,10 +35,8 @@
 
 use std::path::{Path, PathBuf};
 
-const TRUST_BEARING_CONSUMER_DIRS: &[&str] = &[
-    "../vertrule-schemas/src",
-    "../vertrule-verifier/src",
-];
+const TRUST_BEARING_CONSUMER_DIRS: &[&str] =
+    &["../vertrule-schemas/src", "../vertrule-verifier/src"];
 
 const CANONICAL_BYTES_PATTERNS: &[&str] = &[
     // Fully-qualified vr-jcs strict-path producers.

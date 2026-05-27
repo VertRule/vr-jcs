@@ -34,8 +34,7 @@ fn canonical_digest_carries_blake3_untagged_algorithm() -> Result<(), JcsError> 
 }
 
 #[test]
-fn canonical_digest_carries_blake3_keyed_algorithm_with_same_key()
--> Result<(), JcsError> {
+fn canonical_digest_carries_blake3_keyed_algorithm_with_same_key() -> Result<(), JcsError> {
     let key: [u8; 32] = [0x12; 32];
     let strategy = DigestStrategy::blake3_keyed(key);
     let expected_algorithm = strategy.algorithm.clone();
@@ -51,8 +50,8 @@ fn canonical_digest_carries_blake3_keyed_algorithm_with_same_key()
 }
 
 #[test]
-fn canonical_digest_carries_blake3_domain_separated_algorithm_with_same_context()
--> Result<(), JcsError> {
+fn canonical_digest_carries_blake3_domain_separated_algorithm_with_same_context(
+) -> Result<(), JcsError> {
     let context = "vr-jcs ADR-002 C2 passthrough context";
     let strategy = DigestStrategy::blake3_domain_separated(context);
     let expected_algorithm = strategy.algorithm.clone();

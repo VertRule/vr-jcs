@@ -17,8 +17,8 @@
 use vr_jcs::{
     canonical_bytes_from_slice, canonicalize, strict_parse, to_canon_blake3_digest,
     to_canon_blake3_digest_from_slice, to_canon_bytes_from_slice, to_canon_digest_with,
-    to_canon_string_from_str, CanonicalBytes, CanonicalDigest, DigestAlgorithm,
-    DigestStrategy, JcsError, JcsErrorInfo, MAX_NESTING_DEPTH,
+    to_canon_string_from_str, CanonicalBytes, CanonicalDigest, DigestAlgorithm, DigestStrategy,
+    JcsError, JcsErrorInfo, MAX_NESTING_DEPTH,
 };
 
 #[test]
@@ -69,8 +69,7 @@ fn digest_api_signatures_compile() -> Result<(), JcsError> {
     let _domain: DigestStrategy = DigestStrategy::blake3_domain_separated("ctx");
     let _sha: DigestStrategy = DigestStrategy::sha256();
 
-    let digest: CanonicalDigest =
-        to_canon_digest_with(&value, &DigestStrategy::blake3_untagged())?;
+    let digest: CanonicalDigest = to_canon_digest_with(&value, &DigestStrategy::blake3_untagged())?;
     let _name: &'static str = digest.algorithm.name();
     let _len: usize = digest.bytes.len();
 
@@ -138,8 +137,7 @@ fn jcs_error_code_and_duplicate_key_variant_compile() {
 fn strict_parse_module_signatures_compile() -> Result<(), JcsError> {
     let _: i64 = strict_parse::MAX_SAFE_INTEGER;
 
-    let _value: serde_json::Value =
-        strict_parse::parse_json_value_no_duplicates(br#"{"x":1}"#)?;
+    let _value: serde_json::Value = strict_parse::parse_json_value_no_duplicates(br#"{"x":1}"#)?;
 
     let mut deserializer = serde_json::Deserializer::from_slice(br#"{"x":1}"#);
     let _via_de: serde_json::Value =

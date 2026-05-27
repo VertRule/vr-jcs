@@ -31,8 +31,7 @@
 //! error projection is the obligation of ADR-003.
 
 use vr_jcs::{
-    canonical_bytes_from_slice, strict_parse, to_canon_bytes_from_slice,
-    to_canon_string_from_str,
+    canonical_bytes_from_slice, strict_parse, to_canon_bytes_from_slice, to_canon_string_from_str,
 };
 
 #[derive(Clone, Copy)]
@@ -49,9 +48,7 @@ impl StrictEntryPoint {
             Self::CanonBytesFromSlice => "to_canon_bytes_from_slice",
             Self::CanonStringFromStr => "to_canon_string_from_str",
             Self::CanonicalBytesFromSlice => "canonical_bytes_from_slice",
-            Self::StrictParseNoDuplicates => {
-                "strict_parse::parse_json_value_no_duplicates"
-            }
+            Self::StrictParseNoDuplicates => "strict_parse::parse_json_value_no_duplicates",
         }
     }
 
@@ -225,14 +222,10 @@ fn value_with_bmp_xffff_rejected_by_every_strict_entry_point() {
 
 #[test]
 fn value_with_supplementary_xfffe_rejected_by_every_strict_entry_point() {
-    run_case_against_all_strict_entry_points(
-        &value_contains_supplementary_xfffe_case(),
-    );
+    run_case_against_all_strict_entry_points(&value_contains_supplementary_xfffe_case());
 }
 
 #[test]
 fn property_name_with_noncharacter_rejected_by_every_strict_entry_point() {
-    run_case_against_all_strict_entry_points(
-        &object_property_name_contains_noncharacter_case(),
-    );
+    run_case_against_all_strict_entry_points(&object_property_name_contains_noncharacter_case());
 }
