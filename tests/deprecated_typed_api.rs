@@ -13,7 +13,7 @@ use std::collections::BTreeMap;
 #[test]
 fn struct_serialization() -> Result<(), vr_jcs::JcsError> {
     #[derive(Serialize)]
-    struct Receipt {
+    struct SampleRecord {
         id: u64,
         data: BTreeMap<String, i32>,
     }
@@ -23,7 +23,7 @@ fn struct_serialization() -> Result<(), vr_jcs::JcsError> {
     data.insert("apple".to_string(), 1);
     data.insert("mango".to_string(), 2);
 
-    let receipt = Receipt { id: 42, data };
+    let receipt = SampleRecord { id: 42, data };
     let bytes = vr_jcs::to_canon_bytes(&receipt)?;
     let string =
         String::from_utf8(bytes).map_err(|e| vr_jcs::JcsError::InvalidString(e.to_string()))?;
